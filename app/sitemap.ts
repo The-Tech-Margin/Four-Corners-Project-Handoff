@@ -1,41 +1,25 @@
 /**
- * Dynamic sitemap.xml. Static routes + every in_gallery=true project's
- * /view/<slug> URL. Fail-soft: if the Supabase fetch errors, the static
- * routes still ship so crawlers always get something.
+ * Dynamic sitemap.xml: the static routes plus every gallery project's
+ * /view/<slug> URL.
  */
 
 import type { MetadataRoute } from "next";
-import { createClient } from "@supabase/supabase-js";
-import { getSupabasePublicKey } from "@/lib/supabase/public-key";
+import { getServices } from "@/lib/adapters";
+import { siteUrl } from "@/lib/attribution";
 
-const SITE = "https://four-corners.thetechmargin.com";
+const SITE = siteUrl();
 
 const STATIC_ROUTES: MetadataRoute.Sitemap = [
   { url: `${SITE}/`, changeFrequency: "weekly", priority: 1.0 },
   { url: `${SITE}/gallery`, changeFrequency: "daily", priority: 0.9 },
   { url: `${SITE}/about`, changeFrequency: "monthly", priority: 0.6 },
-  { url: `${SITE}/join`, changeFrequency: "monthly", priority: 0.5 },
 ];
 
-async function fetchGalleryProjects(): Promise<
-  { slug: string; updated_at: string | null }[]
-> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = getSupabasePublicKey();
-  if (!url || !key) return [];
-
+async function fetchGalleryProjects(): Promise<{ slug: string; updatedAt: string }[]> {
   try {
-    const sb = createClient(url, key);
-    const { data, error } = await sb
-      .from("projects")
-      .select("slug, updated_at")
-      .eq("in_gallery", true)
-      .not("slug", "is", null)
-      .order("updated_at", { ascending: false })
-      .limit(5000);
-    if (error) return [];
-    return (data ?? []) as { slug: string; updated_at: string | null }[];
+    return await getServices().projects.listSitemapEntries(5000);
   } catch {
+    // Fail soft: the static routes still ship so crawlers get something.
     return [];
   }
 }
@@ -43,10 +27,10 @@ async function fetchGalleryProjects(): Promise<
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const projects = await fetchGalleryProjects();
   const projectRoutes: MetadataRoute.Sitemap = projects
-    .filter((p) => p.slug && p.slug.trim().length > 0)
-    .map((p) => ({
-      url: `${SITE}/view/${encodeURIComponent(p.slug)}`,
-      lastModified: p.updated_at ? new Date(p.updated_at) : undefined,
+    .filter((entry) => entry.slug.trim().length > 0)
+    .map((entry) => ({
+      url: `${SITE}/view/${encodeURIComponent(entry.slug)}`,
+      lastModified: entry.updatedAt ? new Date(entry.updatedAt) : undefined,
       changeFrequency: "monthly",
       priority: 0.7,
     }));

@@ -35,7 +35,7 @@ import {
   togglePublish,
   toggleGallery,
   GALLERY_LIMIT_REACHED,
-} from "@/lib/db/projects";
+} from "@/lib/api-client/project-actions";
 import type { EditorProps } from "@/lib/layout-modes";
 
 export default function ScrollMode({

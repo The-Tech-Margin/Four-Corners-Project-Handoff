@@ -13,7 +13,6 @@ import { docsData } from "@/app/docs/_data/docsData";
 export type DocsPage =
   | "/docs"
   | "/docs/creator"
-  | "/docs/admin"
   | "/docs/accessibility";
 
 export interface DocsSearchItem {
@@ -98,18 +97,6 @@ export function buildDocsIndex(): DocsSearchItem[] {
       title: section.title,
       subtitle: "Accessibility",
       keywords: ["accessibility", "keyboard", "screen reader", "a11y"],
-    });
-  }
-
-  // Admin guide.
-  for (const section of docsData.adminGuide) {
-    items.push({
-      id: `admin-${section.id}`,
-      page: "/docs/admin",
-      anchor: section.id,
-      title: section.title,
-      subtitle: section.blurb,
-      keywords: ["admin", "back office"],
     });
   }
 

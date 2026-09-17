@@ -41,7 +41,7 @@ describe("generateIIIFManifest", () => {
     expect(seeAlsoIds).toContain("https://c.example");
   });
 
-  it("exports voice transcription texts as canvas annotations without Supabase URLs", () => {
+  it("exports voice transcription texts as annotations without the source URL", () => {
     const manifest = generateIIIFManifest(
       baseState({
         voiceTranscriptions: [
@@ -51,7 +51,7 @@ describe("generateIIIFManifest", () => {
             text: "Spoken note about the photo",
             transcribedAt: "2026-06-12T00:00:00Z",
             audioStoragePath: "user1/voice-recordings/p1/r1.webm",
-            audioStorageUrl: "https://project.supabase.co/storage/v1/sign/whatever.webm",
+            audioStorageUrl: "https://media.example.org/voice/whatever.webm",
           },
         ],
       }),
@@ -60,7 +60,7 @@ describe("generateIIIFManifest", () => {
     const json = JSON.stringify(manifest);
     expect(json).toContain("Spoken note about the photo");
     expect(json).toContain("./audio/r1.webm");
-    expect(json).not.toContain("supabase.co");
+    expect(json).not.toContain("media.example.org");
   });
 
   it("skips transcripts duplicating the backstory annotation", () => {

@@ -1,16 +1,16 @@
 /**
- * Rate limiting — Supabase-backed sliding window.
+ * Rate limiting — tiers, route classification, and caller identity.
  *
- * Uses an RPC function (`check_rate_limit`) that atomically counts
- * recent requests and inserts a log entry. Fail-open: if the RPC
- * call fails, the request is allowed through.
+ * The counter itself is a port (lib/ports/rate-limit.ts); everything here
+ * is the policy around it. Fail-open: an unreachable counter allows the
+ * request rather than taking the site down.
  *
  * @author TheTechMargin
  * @copyright 2025 TheTechMargin
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseSecretKey } from "@/lib/supabase/secret-key";
+import { getRateLimitStore, peekSessionUserId } from "@/lib/adapters/proxy-runtime";
+import { SESSION_COOKIE } from "@/lib/ports/auth";
 
 /* ------------------------------------------------------------------ */
 /*  Tier definitions                                                   */
@@ -20,7 +20,8 @@ export type RateLimitTier =
   | "ai"
   | "write"
   | "read"
-  | "admin"
+  | "auth"
+  | "external"
   | "public"
   | "public_keyed";
 export type IdentifierType = "user" | "ip" | "session";
@@ -35,9 +36,10 @@ export const RATE_LIMIT_TIERS: Record<RateLimitTier, TierConfig> = {
   ai:    { maxRequests: 10,   windowSeconds: 60, identifierType: "user" },
   write: { maxRequests: 30,   windowSeconds: 60, identifierType: "user" },
   read:  { maxRequests: 100,  windowSeconds: 60, identifierType: "ip" },
-  // Admin: all /api/admin/* routes share one bucket per session, and a single
-  // dashboard load fires ~5 parallel requests — 120/min gives real headroom.
-  admin: { maxRequests: 120,  windowSeconds: 60, identifierType: "session" },
+  // Auth: sign-in/sign-up/password-reset attempts, per IP.
+  auth:  { maxRequests: 10,   windowSeconds: 60, identifierType: "ip" },
+  // External fetches on the caller's behalf (link previews, geocoding).
+  external: { maxRequests: 30, windowSeconds: 60, identifierType: "ip" },
   // Public gallery API: open to anonymous callers (per-IP), with a higher
   // ceiling unlocked by presenting a valid Bearer API key (per-key).
   public:        { maxRequests: 100,  windowSeconds: 60, identifierType: "ip" },
@@ -56,32 +58,14 @@ export function classifyRoute(
   pathname: string,
   method: string,
 ): RateLimitTier | null {
-  // Exempt: monitoring + Vercel log drains (signature-verified, server-to-server)
-  if (pathname === "/api/vitals") return null;
-  if (pathname.startsWith("/api/drains/")) return null;
-
-  // Admin routes
-  if (pathname.startsWith("/api/admin")) return "admin";
-
   // AI routes — expensive external calls
   if (pathname.startsWith("/api/ai")) return "ai";
 
   // Storage routes — always writes
   if (pathname.startsWith("/api/storage")) return "write";
 
-  // Tickets — create (POST /api/issues) and reporter updates
-  // (PATCH /api/issues/[id]) are writes; listing/reading own tickets is read.
-  if (pathname.startsWith("/api/issues")) {
-    const upper = method.toUpperCase();
-    return upper === "POST" || upper === "PUT" || upper === "DELETE" || upper === "PATCH"
-      ? "write"
-      : "read";
-  }
-
-  // Invite flow — public request + token acceptance are writes; lookup is read.
-  if (pathname === "/api/invites/request") return "write";
-  if (pathname === "/api/invites/accept") return "write";
-  if (pathname === "/api/invites/lookup") return "read";
+  // Auth: credential attempts are cheap to send and expensive to guess.
+  if (pathname.startsWith("/api/auth")) return "auth";
 
   // Projects: method-dependent
   if (pathname.startsWith("/api/projects")) {
@@ -92,18 +76,14 @@ export function classifyRoute(
     return "read";
   }
 
-  // Dev-auth — treat as write (mutation)
-  if (pathname === "/api/dev-auth") return "write";
-
-  // OAuth — treat as write
-  if (pathname.startsWith("/api/oauth")) return "write";
+  // Outbound fetches made on the caller's behalf.
+  if (pathname === "/api/link-preview") return "external";
+  if (pathname.startsWith("/api/geocode")) return "external";
 
   // Read-only endpoints
   if (
-    pathname.startsWith("/api/palettes") ||
     pathname.startsWith("/api/gallery") ||
-    pathname.startsWith("/api/public/") ||
-    pathname === "/api/link-preview"
+    pathname.startsWith("/api/public/")
   ) {
     return "read";
   }
@@ -132,7 +112,7 @@ async function hashIdentifier(raw: string): Promise<string> {
 /**
  * Extract and hash an identifier from the request.
  *
- * - `user`: decode Supabase JWT from cookie, extract `sub` claim
+ * - `user`: the id from a verified session cookie
  * - `ip`: read forwarded-for / real-ip header
  * - `session`: try user first, fall back to IP
  */
@@ -141,17 +121,28 @@ export async function extractIdentifier(
   identifierType: IdentifierType,
 ): Promise<string | null> {
   if (identifierType === "user" || identifierType === "session") {
-    const userId = extractUserIdFromCookie(request);
+    // The session cookie is verified, not just parsed: a forged cookie
+    // cannot borrow another account's quota.
+    const userId = peekSessionUserId(sessionCookieValue(request));
     if (userId) return hashIdentifier(`user:${userId}`);
-    // Session falls through to IP; pure user type returns null
-    if (identifierType === "user") {
-      // Fall back to IP even for user type — unauthenticated requests
-      // still need rate limiting
-      return extractIpIdentifier(request);
-    }
   }
 
   return extractIpIdentifier(request);
+}
+
+/** Read our own session cookie out of the request's Cookie header. */
+function sessionCookieValue(request: Request): string | undefined {
+  const header = request.headers.get("cookie");
+  if (!header) return undefined;
+
+  for (const pair of header.split(";")) {
+    const separator = pair.indexOf("=");
+    if (separator === -1) continue;
+    if (pair.slice(0, separator).trim() === SESSION_COOKIE) {
+      return pair.slice(separator + 1).trim();
+    }
+  }
+  return undefined;
 }
 
 function extractIpIdentifier(request: Request): Promise<string | null> {
@@ -159,73 +150,6 @@ function extractIpIdentifier(request: Request): Promise<string | null> {
   const realIp = request.headers.get("x-real-ip");
   const ip = forwarded?.split(",")[0]?.trim() || realIp || "unknown";
   return hashIdentifier(`ip:${ip}`);
-}
-
-/**
- * Decode the Supabase JWT from the auth cookie without verification.
- * We only need a stable user identifier — actual auth happens in routes.
- */
-function extractUserIdFromCookie(request: Request): string | null {
-  const cookieHeader = request.headers.get("cookie");
-  if (!cookieHeader) return null;
-
-  // Supabase stores auth in cookies with varying names.
-  // Look for the base64-encoded auth token cookie.
-  // Format: sb-<project-ref>-auth-token=base64(json)
-  // or sb-<project-ref>-auth-token.0, .1, etc. (chunked)
-  const cookies = parseCookies(cookieHeader);
-
-  // Find the auth token cookie
-  let tokenValue: string | null = null;
-
-  for (const [name, value] of Object.entries(cookies)) {
-    if (name.startsWith("sb-") && name.includes("-auth-token")) {
-      // Could be chunked: reassemble .0, .1, .2, etc.
-      if (name.endsWith("-auth-token")) {
-        // Check for chunked cookies
-        const chunks: string[] = [];
-        let i = 0;
-        while (cookies[`${name}.${i}`]) {
-          chunks.push(cookies[`${name}.${i}`]);
-          i++;
-        }
-        tokenValue = chunks.length > 0 ? chunks.join("") : value;
-        break;
-      }
-    }
-  }
-
-  if (!tokenValue) return null;
-
-  try {
-    // The cookie value is base64-encoded JSON containing access_token
-    const decoded = atob(tokenValue);
-    const parsed = JSON.parse(decoded);
-    const accessToken = parsed?.access_token || parsed;
-
-    if (typeof accessToken === "string" && accessToken.includes(".")) {
-      // JWT: header.payload.signature — decode the payload
-      const payloadB64 = accessToken.split(".")[1];
-      const payload = JSON.parse(atob(payloadB64));
-      return payload.sub || null;
-    }
-  } catch {
-    // Not a valid JWT — ignore
-  }
-
-  return null;
-}
-
-function parseCookies(header: string): Record<string, string> {
-  const cookies: Record<string, string> = {};
-  for (const pair of header.split(";")) {
-    const eqIdx = pair.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = pair.slice(0, eqIdx).trim();
-    const val = pair.slice(eqIdx + 1).trim();
-    cookies[key] = val;
-  }
-  return cookies;
 }
 
 /* ------------------------------------------------------------------ */
@@ -293,62 +217,30 @@ export interface RateLimitResult {
   resetAt: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _serviceClient: SupabaseClient<any, any, any> | null = null;
-
-function getServiceClient() {
-  if (_serviceClient) return _serviceClient;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = getSupabaseSecretKey();
-  if (!url || !key) return null;
-  _serviceClient = createClient(url, key);
-  return _serviceClient;
-}
-
 /**
- * Check rate limit via Supabase RPC.
- * Fail-open: returns allowed=true if the check fails.
+ * Check one request against its tier. Fail-open: a counter that cannot be
+ * reached must not take the site down with it.
  */
 export async function checkRateLimit(
   identifier: string,
   tier: RateLimitTier,
-  endpoint: string,
-  method: string,
+  _endpoint: string,
+  _method: string,
 ): Promise<RateLimitResult> {
   const config = RATE_LIMIT_TIERS[tier];
-  const fallback: RateLimitResult = {
-    allowed: true,
-    remaining: config.maxRequests,
-    limit: config.maxRequests,
-    resetAt: new Date(Date.now() + config.windowSeconds * 1000).toISOString(),
-  };
-
-  const sb = getServiceClient();
-  if (!sb) return fallback;
 
   try {
-    const { data, error } = await sb.rpc("check_rate_limit", {
-      p_identifier: identifier,
-      p_tier: tier,
-      p_endpoint: endpoint,
-      p_method: method,
-      p_window_seconds: config.windowSeconds,
-      p_max_requests: config.maxRequests,
+    return await getRateLimitStore().hit(`${tier}:${identifier}`, {
+      limit: config.maxRequests,
+      windowSeconds: config.windowSeconds,
     });
-
-    if (error) {
-      console.error("[rate-limit] RPC error:", error.message);
-      return fallback;
-    }
-
+  } catch (error) {
+    console.error("rate limit check failed — allowing the request", error);
     return {
-      allowed: data.allowed,
-      remaining: data.remaining,
-      limit: data.limit,
-      resetAt: data.reset_at,
+      allowed: true,
+      remaining: config.maxRequests,
+      limit: config.maxRequests,
+      resetAt: new Date(Date.now() + config.windowSeconds * 1000).toISOString(),
     };
-  } catch (err) {
-    console.error("[rate-limit] Check failed:", err);
-    return fallback;
   }
 }

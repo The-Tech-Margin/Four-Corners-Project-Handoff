@@ -10,7 +10,7 @@
  */
 
 import { getValueByPath } from "@/lib/field-utils";
-import type { ProjectRecord } from "@/lib/db/projects";
+import type { ProjectRecord } from "@/lib/projects/types";
 import type { FourCornersMetadataExtended } from "@/lib/schema";
 
 // ── Index builder ───────────────────────────────────────────────────────────

@@ -53,7 +53,7 @@ describe("buildDocsIndex", () => {
   const index = buildDocsIndex();
 
   it("tags every item with a known page and a stable id", () => {
-    const pages = new Set(["/docs", "/docs/creator", "/docs/admin", "/docs/accessibility"]);
+    const pages = new Set(["/docs", "/docs/creator", "/docs/accessibility"]);
     expect(index.length).toBeGreaterThan(0);
     for (const item of index) {
       expect(pages.has(item.page)).toBe(true);
@@ -71,12 +71,11 @@ describe("buildDocsIndex", () => {
     expect(corner?.anchor).toBe("context");
   });
 
-  it("includes publishing, api, accessibility, and admin destinations", () => {
+  it("includes publishing, api and accessibility destinations", () => {
     const byId = (id: string) => index.find((i) => i.id === id);
     expect(byId("creator-publishing")?.anchor).toBe("publishing");
     expect(byId("creator-api")?.anchor).toBe("api");
     expect(index.some((i) => i.page === "/docs/accessibility")).toBe(true);
-    expect(index.some((i) => i.page === "/docs/admin")).toBe(true);
   });
 
   it("surfaces the same section on both the public and creator pages", () => {

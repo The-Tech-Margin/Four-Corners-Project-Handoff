@@ -7,7 +7,7 @@
  */
 
 import type { FourCornersMetadataExtended } from "../field-registry";
-import type { ProjectRecord } from "../db/projects-transforms";
+import type { ProjectRecord } from "../projects/types";
 import type {
   ExportConsentDocument,
   ExportFormat,

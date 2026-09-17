@@ -13,7 +13,7 @@ import { mediaStorage } from "@/lib/media-storage";
  *      hydrates asynchronously. If cleanup ran on mount before hydration
  *      finished, the keep-set was [] and every blob got deleted —
  *      including images/videos/audio attached in a prior session that
- *      hadn't yet uploaded to Supabase. Symptom: user re-opens the editor
+ *      hadn't yet uploaded to storage. Symptom: user re-opens the editor
  *      and an attached video has no playable file even though the
  *      metadata still claims it.
  *

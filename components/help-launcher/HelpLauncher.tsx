@@ -30,8 +30,6 @@ import {
   Plus,
   Rocket,
   Search,
-  Settings,
-  ShieldCheck,
   SquarePen,
   X,
   type LucideIcon,
@@ -59,8 +57,6 @@ const ICONS: Record<HelpIconName, LucideIcon> = {
   accessibility: Accessibility,
   book: BookOpen,
   palette: Palette,
-  admin: Settings,
-  shield: ShieldCheck,
 };
 
 const LISTBOX_ID = "help-launcher-listbox";
@@ -68,11 +64,10 @@ const optionId = (entry: HelpEntry) => `help-opt-${entry.id}`;
 
 interface HelpLauncherProps {
   isAuthed: boolean;
-  isAdmin: boolean;
   onClose: () => void;
 }
 
-export function HelpLauncher({ isAuthed, isAdmin, onClose }: HelpLauncherProps) {
+export function HelpLauncher({ isAuthed, onClose }: HelpLauncherProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
@@ -82,8 +77,8 @@ export function HelpLauncher({ isAuthed, isAdmin, onClose }: HelpLauncherProps) 
   const openerRef = useRef<HTMLElement | null>(null);
 
   const allEntries = useMemo(
-    () => buildHelpEntries({ isAuthed, isAdmin }),
-    [isAuthed, isAdmin],
+    () => buildHelpEntries({ isAuthed }),
+    [isAuthed],
   );
   const results = useMemo(
     () => filterHelpEntries(allEntries, query),

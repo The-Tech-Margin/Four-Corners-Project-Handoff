@@ -20,7 +20,7 @@ export default function NotFound() {
             Lost in the Darkroom
           </h2>
           <p className="text-gray-400 mb-8">
-            This page never developed. It doesn't exist, was moved, or wandered
+            This page never developed. It doesn&apos;t exist, was moved, or wandered
             out of frame.
           </p>
 

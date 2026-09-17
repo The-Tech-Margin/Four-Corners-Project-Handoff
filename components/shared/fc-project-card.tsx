@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
-import type { ProjectRecord } from "@/lib/db/projects";
+import type { ProjectRecord } from "@/lib/projects/types";
 import type { FourCornersMetadataExtended } from "@/lib/schema";
 import { encodeProjectId } from "@/lib/encode-id";
 import { isVideoUrl } from "@/lib/media-utils";
@@ -206,7 +206,7 @@ export const FCProjectCard = memo(function FCProjectCard({
                   onError={handleImageFailed}
                 />
               ) : (
-                // eslint-disable-next-line @next/next/no-img-element -- external Supabase storage URLs, fidelity-critical photography
+                // eslint-disable-next-line @next/next/no-img-element -- stored photography, fidelity-critical
                 <img
                   src={coverSrc}
                   alt={metadata.creativeCommons?.description || titleText || "Project image"}
@@ -249,7 +249,7 @@ export const FCProjectCard = memo(function FCProjectCard({
                   onError={handleImageFailed}
                 />
               ) : (
-                // eslint-disable-next-line @next/next/no-img-element -- external Supabase storage URLs, fidelity-critical photography
+                // eslint-disable-next-line @next/next/no-img-element -- stored photography, fidelity-critical
                 <img
                   src={coverSrc}
                   alt={metadata.creativeCommons?.description || titleText || "Project image"}

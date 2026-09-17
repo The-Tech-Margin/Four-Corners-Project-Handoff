@@ -46,9 +46,9 @@ export const ContextItemSchema = z.object({
   filename: z.string().optional(),
   mimeType: z.string().optional(),
   thumbnailDataUrl: z.string().optional(),
-  storage_path: z.string().optional(), // Supabase Storage path for full-size image
+  storage_path: z.string().optional(), // storage path for full-size image
   storage_url: z.string().optional(), // Public URL for full-size image
-  thumbnail_storage_path: z.string().optional(), // Supabase Storage path for thumbnail
+  thumbnail_storage_path: z.string().optional(), // storage path for thumbnail
   thumbnail_storage_url: z.string().optional(), // Public URL for thumbnail
   url: z.string().optional(),
   src: z.string().optional(),
@@ -61,7 +61,7 @@ export const ContextItemSchema = z.object({
   audioStorageUrl: z.string().optional(),
   audioDataUrl: z.string().optional(),
   // Numeric ID into the mediaStorage IDB (lib/media-storage.ts) holding the
-  // raw audio Blob until the Supabase upload succeeds — same crash-recovery
+  // raw audio Blob until the storage upload succeeds — same crash-recovery
   // semantics as VoiceTranscriptionSchema.audioBlobId. Cleared after upload.
   audioBlobId: z.number().optional(),
   audioMimeType: z.string().optional(),
@@ -147,7 +147,7 @@ export const LocationDataSchema = z.object({
   country: z.string().nullable().optional(),
   formattedLocation: z.string().nullable().optional(),
   capturedAt: z.string().optional(),
-  source: z.enum(["exif", "device", "manual", "voicevault"]).optional(),
+  source: z.enum(["exif", "device", "manual"]).optional(),
   address: z.object({
     street: z.string().optional(),
     street2: z.string().optional(),
@@ -232,7 +232,7 @@ export const VoiceTranscriptionSchema = z.object({
   audioStoragePath: z.string().optional(),
   audioStorageUrl: z.string().optional(),
   // Numeric ID into the mediaStorage IDB (lib/media-storage.ts) where the
-  // raw audio Blob lives until the upload to Supabase succeeds. Survives
+  // raw audio Blob lives until the upload succeeds. Survives
   // mobile tab-discard / refresh: when the page reloads with a transcription
   // that has audioBlobId but no audioStorageUrl, the upload helper recovers
   // the Blob from mediaStorage and uploads it. Cleared after upload.

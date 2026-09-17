@@ -98,6 +98,13 @@ export function parseMetadataText(text: string): ImportResult {
       delete rawData.mainImage; // Remove from metadata object
     }
 
+    // An older bundle may name a location source this schema no longer
+    // accepts. Drop the value rather than fail the whole document.
+    const knownLocationSources = new Set(["exif", "device", "manual"]);
+    if (rawData?.location?.source && !knownLocationSources.has(rawData.location.source)) {
+      delete rawData.location.source;
+    }
+
     // Validate with Zod schema (partial validation for flexibility)
     const result = FourCornersMetadataExtendedSchema.partial({
       ethics: true,

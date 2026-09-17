@@ -3,15 +3,15 @@
  * Zustand store for managing Four Corners metadata
  *
  * DATA HIERARCHY (Single Source of Truth):
- * - LOGGED IN:  Supabase (cloud database) is source of truth
- * - LOGGED OUT: localStorage (via Zustand persist) is source of truth
- * - RUNTIME:    Zustand state (in-memory, always used during session)
+ * - SIGNED IN:  the server is the source of truth
+ * - SIGNED OUT: localStorage (via Zustand persist) is the source of truth
+ * - RUNTIME:    Zustand state, in memory, always used during a session
  *
  * FLOW:
- * 1. On sign-in: Clear local storage, reset state, load from Supabase
- * 2. On sign-out: Save to local storage for offline work
- * 3. Logged in: All saves go to Supabase
- * 4. Logged out: All saves go to localStorage + IndexedDB (media)
+ * 1. On sign-in: clear local storage, reset state, load from the server
+ * 2. On sign-out: save locally so the work continues offline
+ * 3. Signed in: every save goes to the server
+ * 4. Signed out: saves go to localStorage + IndexedDB (media)
  *
  * @author TheTechMargin
  */
@@ -41,7 +41,7 @@ interface VoiceTranscription {
   audioStorageUrl?: string;
   /**
    * Numeric ID into the mediaStorage IDB (lib/media-storage.ts) where the
-   * raw audio Blob lives until the upload to Supabase succeeds. Survives
+   * raw audio Blob lives until the upload succeeds. Survives
    * mobile tab-discard / refresh: when the page reloads with a transcription
    * that has audioBlobId but no audioStorageUrl, the upload helper recovers
    * the Blob from mediaStorage and uploads it. Cleared after upload.
@@ -54,7 +54,7 @@ interface VoiceTranscription {
 interface FourCornersState extends FourCornersMetadataExtended {
   imageSrc: string | null;
   /**
-   * Storage path for the main image when it points at a Supabase object
+   * Storage path for the main image when it points at a storage object
    * (library pick or previously-uploaded asset). Kept in sync with imageSrc
    * so the save flow can write both `main_image_url` AND
    * `main_image_storage_path` — the display layer reconstructs URLs from the
@@ -592,7 +592,7 @@ export const useFourCornersStore = create<FourCornersState>()(
         backStory: state.backStory,
         // Strip base64 data URLs from context items — the *_storage_url
         // fields are the source of truth for media that has been uploaded
-        // to Supabase. data: URLs only exist for unsaved local edits and
+        // to storage. data: URLs only exist for unsaved local edits and
         // the active session keeps them in memory anyway.
         context: state.context.map((item) => {
           const copy = { ...item };

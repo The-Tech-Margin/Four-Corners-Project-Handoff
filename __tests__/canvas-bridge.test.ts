@@ -18,6 +18,11 @@ import {
   PHOTO_Y,
 } from "@/hooks/use-canvas-bridge";
 
+type StoreState = Parameters<typeof storeToCanvasDocument>[0];
+
+/** Fixtures set only the fields the bridge reads. */
+const asStore = (state: Record<string, unknown>) => state as unknown as StoreState;
+
 // Mock the store
 vi.mock("@/lib/store", () => {
   let state: Record<string, unknown> = {};
@@ -83,9 +88,9 @@ function makeStoreState(overrides: Record<string, unknown> = {}) {
 describe("storeToCanvasDocument", () => {
   it("creates zone shapes for all four corners", () => {
     const state = makeStoreState();
-    (useFourCornersStore as any).__setState(state);
+    (useFourCornersStore as unknown as { __setState(s: Record<string, unknown>): void }).__setState(state);
 
-    const doc = storeToCanvasDocument(state as any);
+    const doc = storeToCanvasDocument(asStore(state));
     const zones = doc.shapes.filter((s) => s.type === "zone");
     expect(zones).toHaveLength(4);
 
@@ -98,7 +103,7 @@ describe("storeToCanvasDocument", () => {
 
   it("creates a photo-card at the center position", () => {
     const state = makeStoreState();
-    const doc = storeToCanvasDocument(state as any);
+    const doc = storeToCanvasDocument(asStore(state));
     const photo = doc.shapes.find((s) => s.id === "photo-main");
 
     expect(photo).toBeDefined();
@@ -112,7 +117,7 @@ describe("storeToCanvasDocument", () => {
 
   it("creates text-block shapes for backstory fields", () => {
     const state = makeStoreState();
-    const doc = storeToCanvasDocument(state as any);
+    const doc = storeToCanvasDocument(asStore(state));
     const backstoryBlocks = doc.shapes.filter(
       (s) => s.type === "text-block" && s.metadata?.cornerAffinity === "backstory",
     );
@@ -127,7 +132,7 @@ describe("storeToCanvasDocument", () => {
 
   it("creates context-item shapes for each context entry", () => {
     const state = makeStoreState();
-    const doc = storeToCanvasDocument(state as any);
+    const doc = storeToCanvasDocument(asStore(state));
     const ctxShapes = doc.shapes.filter((s) => s.type === "context-item");
 
     expect(ctxShapes).toHaveLength(2);
@@ -137,7 +142,7 @@ describe("storeToCanvasDocument", () => {
 
   it("creates link-card shapes for each link", () => {
     const state = makeStoreState();
-    const doc = storeToCanvasDocument(state as any);
+    const doc = storeToCanvasDocument(asStore(state));
     const linkShapes = doc.shapes.filter((s) => s.type === "link-card");
 
     expect(linkShapes).toHaveLength(1);
@@ -147,7 +152,7 @@ describe("storeToCanvasDocument", () => {
 
   it("creates voice-note shapes for transcriptions", () => {
     const state = makeStoreState();
-    const doc = storeToCanvasDocument(state as any);
+    const doc = storeToCanvasDocument(asStore(state));
     const voiceShapes = doc.shapes.filter((s) => s.type === "voice-note");
 
     expect(voiceShapes).toHaveLength(1);
@@ -167,7 +172,7 @@ describe("storeToCanvasDocument", () => {
       voiceTranscriptions: [],
     });
 
-    const doc = storeToCanvasDocument(state as any);
+    const doc = storeToCanvasDocument(asStore(state));
     // Should have 4 zones (no photo card when imageSrc is null, no text blocks when fields empty)
     expect(doc.shapes.length).toBeGreaterThanOrEqual(4);
     expect(doc.version).toBe("1.0");
@@ -190,7 +195,7 @@ describe("storeToCanvasDocument", () => {
       ],
     };
 
-    const doc = storeToCanvasDocument(state as any, preset);
+    const doc = storeToCanvasDocument(asStore(state), preset);
     const presetShapes = doc.shapes.filter((s) => s.id.startsWith("preset-"));
     expect(presetShapes).toHaveLength(1);
     expect(presetShapes[0].data.content).toBe("A story");

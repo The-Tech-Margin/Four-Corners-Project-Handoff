@@ -1,0 +1,1096 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:four-corners:project:1.1.0",
+  "title": "Four Corners project metadata",
+  "$comment": "Four Corners — system design & build: TheTechMargin",
+  "type": "object",
+  "properties": {
+    "backStory": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "default": "",
+          "description": "Photographer's narrative about the image",
+          "title": "Backstory",
+          "x-fc": {
+            "path": "backStory.text",
+            "fourCornersPath": "backStory.text",
+            "uiSection": "backstory",
+            "canvasCorner": "backstory",
+            "required": false,
+            "iiif": {
+              "label": "Backstory",
+              "section": "summary"
+            }
+          }
+        },
+        "author": {
+          "type": "string",
+          "default": "",
+          "description": "Photographer name",
+          "title": "Photographer Name",
+          "x-fc": {
+            "path": "backStory.author",
+            "fourCornersPath": "backStory.author",
+            "uiSection": "backstory",
+            "canvasCorner": "backstory",
+            "required": true,
+            "iiif": {
+              "label": "Creator",
+              "section": "metadata"
+            }
+          }
+        },
+        "publication": {
+          "type": "string",
+          "default": "",
+          "description": "Organization or publication name",
+          "title": "Publication",
+          "x-fc": {
+            "path": "backStory.publication",
+            "fourCornersPath": "backStory.publication",
+            "uiSection": "backstory",
+            "canvasCorner": "backstory",
+            "required": false,
+            "iiif": {
+              "label": "Publisher",
+              "section": "metadata"
+            }
+          }
+        },
+        "publicationUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Organization URL",
+          "title": "Publication URL",
+          "x-fc": {
+            "path": "backStory.publicationUrl",
+            "fourCornersPath": "backStory.publicationUrl",
+            "uiSection": "backstory",
+            "canvasCorner": "backstory",
+            "required": false,
+            "iiif": {
+              "label": "Publisher URL",
+              "section": "provider"
+            }
+          }
+        },
+        "date": {
+          "type": "string",
+          "default": "",
+          "description": "Date of capture (ISO format)",
+          "title": "Date",
+          "x-fc": {
+            "path": "backStory.date",
+            "fourCornersPath": "backStory.date",
+            "uiSection": "backstory",
+            "canvasCorner": "backstory",
+            "required": false,
+            "iiif": {
+              "label": "Date",
+              "section": "metadata"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "context": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "upload",
+              "url"
+            ]
+          },
+          "blobId": {
+            "type": "number"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "thumbnailDataUrl": {
+            "type": "string"
+          },
+          "storage_path": {
+            "type": "string"
+          },
+          "storage_url": {
+            "type": "string"
+          },
+          "thumbnail_storage_path": {
+            "type": "string"
+          },
+          "thumbnail_storage_url": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "src": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string",
+            "default": ""
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "credit": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "audioStoragePath": {
+            "type": "string"
+          },
+          "audioStorageUrl": {
+            "type": "string"
+          },
+          "audioDataUrl": {
+            "type": "string"
+          },
+          "audioBlobId": {
+            "type": "number"
+          },
+          "audioMimeType": {
+            "type": "string"
+          },
+          "audioDuration": {
+            "type": "number"
+          },
+          "linkedProjectId": {
+            "type": "string"
+          },
+          "linkedProjectSlug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sourceType",
+          "type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "default": "",
+            "description": "Display title"
+          },
+          "url": {
+            "type": "string",
+            "default": "",
+            "description": "URL of resource"
+          },
+          "source": {
+            "type": "string",
+            "default": "",
+            "description": "Source/publication name"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "creativeCommons": {
+      "type": "object",
+      "properties": {
+        "copyright": {
+          "type": "string",
+          "default": "",
+          "description": "Copyright statement",
+          "title": "Copyright",
+          "x-fc": {
+            "path": "creativeCommons.copyright",
+            "fourCornersPath": "creativeCommons.copyright",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": true,
+            "iiif": {
+              "label": "Attribution",
+              "section": "requiredStatement"
+            }
+          }
+        },
+        "description": {
+          "type": "string",
+          "default": "",
+          "description": "Caption/description for publication",
+          "title": "Caption/Description",
+          "x-fc": {
+            "path": "creativeCommons.description",
+            "fourCornersPath": "creativeCommons.description",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Caption",
+              "section": "metadata"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ethics": {
+      "type": "object",
+      "properties": {
+        "customEthicsText": {
+          "type": "string",
+          "title": "Custom Ethics Statement",
+          "x-fc": {
+            "path": "ethics.customEthicsText",
+            "fourCornersPath": "ethics.customEthicsText",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics Statement",
+              "section": "metadata"
+            }
+          }
+        },
+        "noManipulation": {
+          "type": "boolean",
+          "title": "No Manipulation",
+          "x-fc": {
+            "path": "ethics.noManipulation",
+            "fourCornersPath": "ethics.noManipulation",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics - Manipulation",
+              "section": "metadata"
+            }
+          }
+        },
+        "manipulationDetails": {
+          "type": "string",
+          "title": "Manipulation Details",
+          "x-fc": {
+            "path": "ethics.manipulationDetails",
+            "fourCornersPath": "ethics.manipulationDetails",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics - Manipulation Details",
+              "section": "metadata"
+            }
+          }
+        },
+        "noStaging": {
+          "type": "boolean",
+          "title": "No Staging",
+          "x-fc": {
+            "path": "ethics.noStaging",
+            "fourCornersPath": "ethics.noStaging",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics - Staging",
+              "section": "metadata"
+            }
+          }
+        },
+        "stagingDetails": {
+          "type": "string",
+          "title": "Staging Details",
+          "x-fc": {
+            "path": "ethics.stagingDetails",
+            "fourCornersPath": "ethics.stagingDetails",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics - Staging Details",
+              "section": "metadata"
+            }
+          }
+        },
+        "informedConsent": {
+          "type": "boolean",
+          "title": "Informed Consent",
+          "x-fc": {
+            "path": "ethics.informedConsent",
+            "fourCornersPath": "ethics.informedConsent",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics - Consent",
+              "section": "metadata"
+            }
+          }
+        },
+        "consentDetails": {
+          "type": "string",
+          "title": "Consent Details",
+          "x-fc": {
+            "path": "ethics.consentDetails",
+            "fourCornersPath": "ethics.consentDetails",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics - Consent Details",
+              "section": "metadata"
+            }
+          }
+        },
+        "identityProtected": {
+          "type": "boolean",
+          "title": "Identity Protected",
+          "x-fc": {
+            "path": "ethics.identityProtected",
+            "fourCornersPath": "ethics.identityProtected",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics - Identity Protection",
+              "section": "metadata"
+            }
+          }
+        },
+        "identityProtectionDetails": {
+          "type": "string",
+          "title": "Identity Protection Details",
+          "x-fc": {
+            "path": "ethics.identityProtectionDetails",
+            "fourCornersPath": "ethics.identityProtectionDetails",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics - Identity Protection Details",
+              "section": "metadata"
+            }
+          }
+        },
+        "consentDocumentUrl": {
+          "type": "string"
+        },
+        "aiAltered": {
+          "type": "boolean",
+          "title": "AI Altered",
+          "x-fc": {
+            "path": "ethics.aiAltered",
+            "fourCornersPath": "ethics.aiAltered",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics - AI Alteration",
+              "section": "metadata"
+            }
+          }
+        },
+        "aiAlteredDetails": {
+          "type": "string",
+          "title": "AI Alteration Details",
+          "x-fc": {
+            "path": "ethics.aiAlteredDetails",
+            "fourCornersPath": "ethics.aiAlteredDetails",
+            "uiSection": "caption-credit-ethics",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Ethics - AI Alteration Details",
+              "section": "metadata"
+            }
+          }
+        }
+      },
+      "required": [
+        "noManipulation",
+        "noStaging",
+        "informedConsent",
+        "identityProtected"
+      ],
+      "additionalProperties": false
+    },
+    "photographerInfo": {
+      "type": "object",
+      "properties": {
+        "bio": {
+          "type": "string",
+          "title": "Photographer Bio",
+          "x-fc": {
+            "path": "photographerInfo.bio",
+            "fourCornersPath": "photographerInfo.bio",
+            "uiSection": "backstory",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Photographer Bio",
+              "section": "metadata"
+            }
+          }
+        },
+        "contact": {
+          "type": "string",
+          "title": "Contact",
+          "x-fc": {
+            "path": "photographerInfo.contact",
+            "fourCornersPath": "photographerInfo.contact",
+            "uiSection": "backstory",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Contact",
+              "section": "metadata"
+            }
+          }
+        },
+        "website": {
+          "type": "string",
+          "title": "Website",
+          "x-fc": {
+            "path": "photographerInfo.website",
+            "fourCornersPath": "photographerInfo.website",
+            "uiSection": "backstory",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Photographer Website",
+              "section": "homepage"
+            }
+          }
+        },
+        "collaborators": {
+          "type": "string",
+          "title": "Collaborators",
+          "x-fc": {
+            "path": "photographerInfo.collaborators",
+            "fourCornersPath": "photographerInfo.collaborators",
+            "uiSection": "backstory",
+            "canvasCorner": "cc",
+            "required": false,
+            "iiif": {
+              "label": "Collaborators",
+              "section": "metadata"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "title": "Latitude",
+          "x-fc": {
+            "path": "location.latitude",
+            "fourCornersPath": "location.latitude",
+            "uiSection": "location",
+            "required": false,
+            "iiif": {
+              "label": "Location",
+              "section": "navPlace"
+            }
+          }
+        },
+        "longitude": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "title": "Longitude",
+          "x-fc": {
+            "path": "location.longitude",
+            "fourCornersPath": "location.longitude",
+            "uiSection": "location",
+            "required": false,
+            "iiif": {
+              "label": "Location",
+              "section": "navPlace"
+            }
+          }
+        },
+        "city": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "country": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "formattedLocation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "title": "Location",
+          "x-fc": {
+            "path": "location.formattedLocation",
+            "fourCornersPath": "location.formattedLocation",
+            "uiSection": "location",
+            "required": false,
+            "iiif": {
+              "label": "Location",
+              "section": "metadata"
+            }
+          }
+        },
+        "capturedAt": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "exif",
+            "device",
+            "manual"
+          ]
+        },
+        "address": {
+          "type": "object",
+          "properties": {
+            "street": {
+              "type": "string"
+            },
+            "street2": {
+              "type": "string"
+            },
+            "city": {
+              "type": "string"
+            },
+            "district": {
+              "type": "string"
+            },
+            "stateProvince": {
+              "type": "string"
+            },
+            "postalCode": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "photoMetadata": {
+      "type": "object",
+      "properties": {
+        "dateTaken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "temporal": {
+          "type": "object",
+          "properties": {
+            "dateTimeOriginal": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "dateTime": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "dateTimeDigitized": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "dateModified": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "offsetTimeOriginal": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "offsetTime": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "offsetTimeDigitized": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "subSecTimeOriginal": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "subSecTime": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "subSecTimeDigitized": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "gpsDateStamp": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "gpsTimeStamp": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "gps": {
+          "type": "object",
+          "properties": {
+            "altitude": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "altitudeRef": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "speed": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "speedRef": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "imgDirection": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "imgDirectionRef": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "destBearing": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "destBearingRef": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "equipment": {
+          "type": "object",
+          "properties": {
+            "cameraMake": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "Camera Make",
+              "x-fc": {
+                "path": "photoMetadata.equipment.cameraMake",
+                "fourCornersPath": "photoMetadata.equipment.cameraMake",
+                "uiSection": "camera-metadata",
+                "required": false
+              }
+            },
+            "cameraModel": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "Camera Model",
+              "x-fc": {
+                "path": "photoMetadata.equipment.cameraModel",
+                "fourCornersPath": "photoMetadata.equipment.cameraModel",
+                "uiSection": "camera-metadata",
+                "required": false
+              }
+            },
+            "lensModel": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "Lens",
+              "x-fc": {
+                "path": "photoMetadata.equipment.lensModel",
+                "fourCornersPath": "photoMetadata.equipment.lensModel",
+                "uiSection": "camera-metadata",
+                "required": false
+              }
+            },
+            "focalLength": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "Focal Length",
+              "x-fc": {
+                "path": "photoMetadata.equipment.focalLength",
+                "fourCornersPath": "photoMetadata.equipment.focalLength",
+                "uiSection": "camera-metadata",
+                "required": false
+              }
+            },
+            "iso": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "ISO",
+              "x-fc": {
+                "path": "photoMetadata.equipment.iso",
+                "fourCornersPath": "photoMetadata.equipment.iso",
+                "uiSection": "camera-metadata",
+                "required": false
+              }
+            },
+            "aperture": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "Aperture",
+              "x-fc": {
+                "path": "photoMetadata.equipment.aperture",
+                "fourCornersPath": "photoMetadata.equipment.aperture",
+                "uiSection": "camera-metadata",
+                "required": false
+              }
+            },
+            "shutterSpeed": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "title": "Shutter Speed",
+              "x-fc": {
+                "path": "photoMetadata.equipment.shutterSpeed",
+                "fourCornersPath": "photoMetadata.equipment.shutterSpeed",
+                "uiSection": "camera-metadata",
+                "required": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "device": {
+          "type": "object",
+          "properties": {
+            "software": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "hostComputer": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "artist": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "copyright": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "userComment": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "imageDescription": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "image": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "height": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "orientation": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "voiceTranscriptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "recordingId": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "transcribedAt": {
+            "type": "string"
+          },
+          "fieldId": {
+            "type": "string"
+          },
+          "audioDataUrl": {
+            "type": "string"
+          },
+          "audioStoragePath": {
+            "type": "string"
+          },
+          "audioStorageUrl": {
+            "type": "string"
+          },
+          "audioBlobId": {
+            "type": "number"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "recordingId",
+          "text",
+          "transcribedAt"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "editorVersion": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "minimal",
+            "standard",
+            "complete"
+          ]
+        }
+      },
+      "required": [
+        "createdAt",
+        "updatedAt",
+        "editorVersion",
+        "mode"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "backStory",
+    "context",
+    "links",
+    "creativeCommons"
+  ],
+  "additionalProperties": false
+}

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { notifyClipboard, notifyPublish } from "@/lib/notify";
-import { togglePublish, type ProjectRecord } from "@/lib/db/projects";
+import { togglePublish } from "@/lib/api-client/project-actions";
+import type { ProjectRecord } from "@/lib/projects/types";
 import { encodeProjectId } from "@/lib/encode-id";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 

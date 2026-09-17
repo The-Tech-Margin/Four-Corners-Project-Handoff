@@ -16,8 +16,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { getUserQuota, type UserQuota } from "@/lib/db/user-storage";
+import { getUserQuota, type UserQuota } from "@/lib/api-client/quota";
 import {
   formatBytes,
   USAGE_CRITICAL_RATIO,
@@ -58,22 +57,13 @@ export function StorageUsageBadge({
     if (data) return;
     let cancelled = false;
     (async () => {
-      const supabase = createClient();
-      if (!supabase) {
-        setLoading(false);
-        return;
-      }
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      const q = await getUserQuota(user.id);
-      if (!cancelled) {
-        setSelfQuota(q);
-        setLoading(false);
+      try {
+        const q = await getUserQuota();
+        if (!cancelled) setSelfQuota(q);
+      } catch {
+        /* signed out or unreachable — the badge just stays empty */
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {

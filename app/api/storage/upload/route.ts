@@ -1,155 +1,146 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/client";
-import { apiError } from "@/lib/api-error";
-import { recordAsset } from "@/lib/db/user-assets";
-import {
-  ALLOWED_VIDEO_MIME_TYPES,
-  MAX_UPLOAD_BYTES,
-  formatBytes,
-  kindFromMime,
-  kindLabel,
-} from "@/lib/upload-limits";
-import { checkQuotaForUpload } from "@/lib/db/user-storage";
-
 /**
- * POST /api/storage/upload - Upload file to Supabase Storage
+ * POST /api/storage/upload — receive one file and store it.
+ *
+ * The browser never talks to the object store: it posts here, the server
+ * checks the session and the quota, picks the key, and records the asset.
+ *
+ * @author TheTechMargin
+ * @copyright 2026 TheTechMargin
  */
+
+import type { NextRequest } from "next/server";
+import { getServices } from "@/lib/adapters";
+import type { AssetMediaType } from "@/lib/ports/assets";
+import type { BucketName } from "@/lib/ports/blob-storage";
+import { blobUrl } from "@/lib/storage/blob-url";
+import {
+  contextAudioKey,
+  contextMediaKey,
+  contextThumbnailKey,
+  mainImageKey,
+  mainThumbnailKey,
+  tempTranscribeKey,
+  voiceRecordingKey,
+} from "@/lib/storage/keys";
+import {
+  assertSameOrigin,
+  errorResponse,
+  handleRouteError,
+  json,
+  unauthorized,
+} from "@/lib/server/http";
+import { assertQuotaFor } from "@/lib/server/quota";
+import { getServerUser } from "@/lib/server/session";
+import { extensionFromMime, kindFromMime, validateUpload } from "@/lib/upload-limits";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 120;
+
+const PURPOSES = [
+  "main-image",
+  "main-thumbnail",
+  "context-media",
+  "context-thumbnail",
+  "context-audio",
+  "voice-recording",
+  "transcribe-source",
+] as const;
+
+type Purpose = (typeof PURPOSES)[number];
+
+const MEDIA_TYPE: Record<Purpose, AssetMediaType> = {
+  "main-image": "image",
+  "main-thumbnail": "image",
+  "context-media": "image",
+  "context-thumbnail": "image",
+  "context-audio": "audio",
+  "voice-recording": "audio",
+  "transcribe-source": "audio",
+};
+
+function bucketFor(purpose: Purpose): BucketName {
+  return purpose === "voice-recording" || purpose === "transcribe-source"
+    ? "voice-recordings"
+    : "context-media";
+}
+
 export async function POST(request: NextRequest) {
+  const blocked = assertSameOrigin(request);
+  if (blocked) return blocked;
+
   try {
-    const supabase = createClient();
+    const user = await getServerUser();
+    if (!user) return unauthorized();
 
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const form = await request.formData();
+    const file = form.get("file");
+    const purpose = String(form.get("purpose") ?? "") as Purpose;
+    const projectId = String(form.get("projectId") ?? "");
+    const itemId = String(form.get("itemId") ?? "");
 
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(file instanceof File)) return errorResponse("No file in the request", 400);
+    if (!PURPOSES.includes(purpose)) return errorResponse("Unknown upload purpose", 400);
+    if (purpose !== "transcribe-source" && !projectId) {
+      return errorResponse("projectId is required", 400);
     }
 
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
-    const bucket = formData.get("bucket") as string;
-    const path = formData.get("path") as string;
+    const mimeType = file.type || "application/octet-stream";
+    const kind = kindFromMime(mimeType);
+    const check = validateUpload({ size: file.size, name: file.name || "upload" }, kind);
+    if (!check.ok) return errorResponse(check.error, 413);
 
-    if (!file || !bucket || !path) {
-      return NextResponse.json(
-        { error: "Missing required fields: file, bucket, path" },
-        { status: 400 }
-      );
-    }
+    await assertQuotaFor(user.id, file.size);
 
-    // Validate file type — images, videos, and documents (consent forms etc.)
-    // Video list comes from ALLOWED_VIDEO_MIME_TYPES so the editor + this
-    // defensive endpoint can't drift apart.
-    const ALLOWED_TYPES = [
-      // Images
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "image/heic",
-      "image/heif",
-      // Videos
-      ...ALLOWED_VIDEO_MIME_TYPES,
-      // Documents (consent forms, PDFs, Word)
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "text/plain",
-    ];
+    const extension = extensionFromMime(mimeType);
+    const fileName = file.name || `upload.${extension}`;
+    const key = (() => {
+      switch (purpose) {
+        case "main-image":
+          return mainImageKey(user.id, projectId, extension);
+        case "main-thumbnail":
+          return mainThumbnailKey(user.id, projectId);
+        case "context-media":
+          return contextMediaKey(user.id, projectId, fileName);
+        case "context-thumbnail":
+          return contextThumbnailKey(user.id, projectId, fileName);
+        case "context-audio":
+          return contextAudioKey(user.id, projectId, itemId || fileName, extension);
+        case "voice-recording":
+          return voiceRecordingKey(user.id, projectId, itemId || fileName, extension);
+        case "transcribe-source":
+          return tempTranscribeKey(user.id, itemId || `${Date.now()}`, extension);
+      }
+    })();
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: "Invalid file type. Allowed: images, videos, PDF, Word, text" },
-        { status: 400 }
-      );
-    }
+    const bucket = bucketFor(purpose);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const stored = await getServices().blobs.put(bucket, key, bytes, { contentType: mimeType });
 
-    // Per-file size check — uses the shared limits table so client + server
-    // enforce the same caps. Kind is inferred from MIME since this route is a
-    // catch-all and can't tell which UI surfaced it.
-    const kind = kindFromMime(file.type);
-    const maxBytes = MAX_UPLOAD_BYTES[kind];
-    if (file.size > maxBytes) {
-      return NextResponse.json(
-        {
-          error: `${file.name} is ${formatBytes(file.size)} — ${kindLabel(kind)}s must be under ${formatBytes(maxBytes)}.`,
-        },
-        { status: 413 },
-      );
-    }
-
-    // Per-user storage quota — block uploads that would push the user over
-    // their plan's limit. Defence-in-depth: the UI checks too, but a direct
-    // POST bypassing the UI must be caught here.
-    const quota = await checkQuotaForUpload(user.id, file.size);
-    if (!quota.ok) {
-      return NextResponse.json(
-        {
-          error: `You've used ${formatBytes(quota.used)} of your ${formatBytes(quota.limit)} storage (${quota.plan} plan). Remove some assets or upgrade to add more.`,
-        },
-        { status: 413 },
-      );
-    }
-
-    // Sanitize bucket name - only allow alphanumeric and hyphens
-    if (!/^[a-z0-9-]+$/.test(bucket)) {
-      return NextResponse.json(
-        { error: "Invalid bucket name" },
-        { status: 400 }
-      );
-    }
-
-    // Sanitize path - prevent directory traversal
-    const sanitizedPath = path.replace(/\.\./g, "").replace(/^\/+/, "");
-    if (sanitizedPath !== path || path.includes("..")) {
-      return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
-    }
-
-    // Upload to Supabase Storage with user ID prefix for isolation
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(`${user.id}/${sanitizedPath}`, file, {
-        upsert: true,
-        contentType: file.type,
+    // Scratch uploads for transcription are deleted straight after use, so
+    // they are not part of the library.
+    if (purpose !== "transcribe-source") {
+      await getServices().assets.record(user.id, {
+        mediaType: MEDIA_TYPE[purpose],
+        mimeType,
+        fileName,
+        bucket,
+        key,
+        thumbnailKey: null,
+        fileSize: stored.size,
+        width: null,
+        height: null,
+        duration: null,
       });
-
-    if (error) {
-      throw error;
     }
 
-    // Get public URL
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from(bucket).getPublicUrl(data.path);
-
-    // Index in the user's library (fire-and-forget).
-    const mediaType: "image" | "video" | "audio" | "document" =
-      file.type.startsWith("video/")
-        ? "video"
-        : file.type.startsWith("audio/")
-          ? "audio"
-          : file.type.startsWith("image/")
-            ? "image"
-            : "document";
-    void recordAsset({
-      mediaType,
-      mimeType: file.type,
-      fileName: file.name,
-      storageBucket: bucket,
-      storagePath: data.path,
-      storageUrl: publicUrl,
-      fileSize: file.size,
-    });
-
-    return NextResponse.json({
-      path: data.path,
-      publicUrl,
+    return json({
+      bucket,
+      key,
+      url: blobUrl(bucket, key, { projectId: bucket === "context-media" ? undefined : projectId }),
+      size: stored.size,
+      mimeType,
     });
   } catch (error) {
-    return apiError(error, "Failed to upload file");
+    return handleRouteError(error, "Upload failed");
   }
 }

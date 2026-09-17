@@ -22,6 +22,7 @@ import {
   type ExportManifest,
 } from "../export-contract";
 import type { ContextItem, VoiceTranscription } from "../field-registry";
+import { ATTRIBUTION } from "../attribution";
 import type { AssetRef, ExportOptions, ExportProjectInput } from "./types";
 
 export type SerializeFlavor = "embedded" | "bundle-relative" | "reference";
@@ -57,6 +58,12 @@ function findAsset(
 
 /** Build the `_ext.export` manifest from resolved bundle assets. */
 export function buildExportManifest(assets: AssetRef[]): ExportManifest {
+  const generator = {
+    name: ATTRIBUTION.product,
+    designAndBuild: ATTRIBUTION.name,
+    url: ATTRIBUTION.url,
+    formatVersion: CURRENT_EXPORT_VERSION,
+  };
   const mainImage = findAsset(assets, "main", "main-image");
   const mainThumb = findAsset(assets, "main", "main-thumbnail");
 
@@ -76,6 +83,7 @@ export function buildExportManifest(assets: AssetRef[]): ExportManifest {
 
   return {
     version: CURRENT_EXPORT_VERSION,
+    generator,
     assets: {
       mainImage: mainImage
         ? {

@@ -1,10 +1,21 @@
+/**
+ * Sign in, create an account, or ask for a password reset.
+ *
+ * The account tab only appears when the deployment accepts sign-ups.
+ *
+ * @author TheTechMargin
+ * @copyright 2026 TheTechMargin
+ */
+
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/modal";
 import { FourCornersLogo } from "@/components/four-corners-logo";
+import { useAccess } from "@/components/access-provider";
+import { useCapabilities } from "@/components/capabilities-provider";
+
+type Mode = "signin" | "signup" | "reset";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -14,20 +25,40 @@ interface AuthModalProps {
   dismissible?: boolean;
 }
 
+const TITLES: Record<Mode, string> = {
+  signin: "Sign In",
+  signup: "Create Account",
+  reset: "Reset Password",
+};
+
+const BLURBS: Record<Mode, string> = {
+  signin: "Sign in to save your projects.",
+  signup: "Create an account to start documenting your photographs.",
+  reset: "Enter your email to receive a password reset link.",
+};
+
 export function AuthModal({
   isOpen,
   onClose,
   onSuccess,
   dismissible = true,
 }: AuthModalProps) {
-  const supabase = createClient();
+  const access = useAccess();
+  const capabilities = useCapabilities();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<"signin" | "reset">("signin");
+  const [mode, setMode] = useState<Mode>("signin");
   const [message, setMessage] = useState("");
+  const [sent, setSent] = useState(false);
 
   if (!isOpen) return null;
+
+  const switchTo = (next: Mode) => {
+    setMode(next);
+    setMessage("");
+    setSent(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,38 +66,32 @@ export function AuthModal({
     setMessage("");
 
     try {
-      if (!supabase) {
-        setMessage("Supabase is not configured");
+      if (mode === "reset") {
+        const result = await access.requestPasswordReset(email);
+        if (!result.ok) {
+          setMessage(result.error ?? "Could not send the reset link");
+          return;
+        }
+        setSent(true);
+        setMessage(
+          capabilities.emailDelivery
+            ? "Check your email for a password reset link."
+            : "Reset link sent. This deployment logs it to the server console.",
+        );
         return;
       }
 
-      if (mode === "reset") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
-        });
+      const result =
+        mode === "signup"
+          ? await access.signUp(email, password)
+          : await access.signIn(email, password);
 
-        if (error) throw error;
-        setMessage("Check your email for password reset instructions!");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-
-        // Close modal - user stays on the current page (editor)
-        onSuccess();
+      if (!result.ok) {
+        setMessage(result.error ?? "Authentication failed");
+        return;
       }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "";
-      if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
-        setMessage(
-          "Unable to reach the server. Check your internet connection and try again.",
-        );
-      } else {
-        setMessage(msg || "Authentication failed");
-      }
+
+      onSuccess();
     } finally {
       setLoading(false);
     }
@@ -76,59 +101,62 @@ export function AuthModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={mode === "signin" ? "Sign In" : "Reset Password"}
+      title={TITLES[mode]}
       maxWidth="md"
       dismissible={dismissible}
       showHeader={false}
     >
       <div className="px-4 sm:px-5 py-4">
-        {/* Four Corners Logo */}
         <div className="flex justify-center mb-6">
           <FourCornersLogo className="w-16 h-16" />
         </div>
 
-        <p className="modal-text-muted text-sm mb-4 text-center">
-          {mode === "reset"
-            ? "Enter your email to receive password reset instructions."
-            : "Sign in to save your projects to the cloud."}
-        </p>
+        <p className="modal-text-muted text-sm mb-4 text-center">{BLURBS[mode]}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="modal-text block text-sm font-medium mb-1">
+            <label className="modal-text block text-sm font-medium mb-1" htmlFor="auth-email">
               Email
             </label>
             <input
+              id="auth-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
               className="modal-input w-full px-3 py-2 border rounded focus:outline-none focus:border-corner-backstory transition-colors"
             />
           </div>
 
-          {mode === "signin" && (
+          {mode !== "reset" && (
             <div>
-              <label className="modal-text block text-sm font-medium mb-1">
+              <label
+                className="modal-text block text-sm font-medium mb-1"
+                htmlFor="auth-password"
+              >
                 Password
               </label>
               <input
+                id="auth-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 className="modal-input w-full px-3 py-2 border rounded focus:outline-none focus:border-corner-backstory transition-colors"
               />
+              {mode === "signup" && (
+                <p className="modal-text-muted text-xs mt-1">At least 8 characters.</p>
+              )}
             </div>
           )}
 
           {message && (
             <div
               className={`text-sm p-2 rounded ${
-                message.includes("Check your email")
-                  ? "bg-green-500/20 text-green-400"
-                  : "bg-red-500/20 text-red-400"
+                sent ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
               }`}
             >
               {message}
@@ -140,43 +168,38 @@ export function AuthModal({
             disabled={loading}
             className="modal-button-primary w-full px-4 py-2 font-medium rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading
-              ? "Loading..."
-              : mode === "signin"
-                ? "Sign In"
-                : "Send Reset Link"}
+            {loading ? "Loading..." : TITLES[mode]}
           </button>
         </form>
 
         <div className="mt-4 text-center space-y-2">
-          {mode === "signin" ? (
+          {mode === "signin" && (
             <>
               <button
                 type="button"
-                onClick={() => {
-                  setMode("reset");
-                  setMessage("");
-                }}
+                onClick={() => switchTo("reset")}
                 className="modal-text-muted text-sm hover:text-corner-backstory transition-colors"
               >
                 Forgot password?
               </button>
-              <div>
-                <Link
-                  href="/join"
-                  className="text-sm text-corner-backstory hover:underline transition-colors"
-                >
-                  Need an account? Request access
-                </Link>
-              </div>
+              {capabilities.auth.signUp && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => switchTo("signup")}
+                    className="text-sm text-corner-backstory hover:underline transition-colors"
+                  >
+                    Need an account? Create one
+                  </button>
+                </div>
+              )}
             </>
-          ) : (
+          )}
+
+          {mode !== "signin" && (
             <button
               type="button"
-              onClick={() => {
-                setMode("signin");
-                setMessage("");
-              }}
+              onClick={() => switchTo("signin")}
               className="text-sm text-corner-backstory hover:underline transition-colors"
             >
               Back to sign in

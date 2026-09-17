@@ -491,7 +491,7 @@ export function FCPhotoViewer({
                 />
               </div>
             )}
-            {/* eslint-disable-next-line @next/next/no-img-element -- viewer: external Supabase URLs, fidelity-critical */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- viewer: stored media, fidelity-critical */}
             <img
               src={activeSrc}
               alt={imageAlt}

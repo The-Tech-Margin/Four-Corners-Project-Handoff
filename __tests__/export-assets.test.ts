@@ -195,8 +195,8 @@ describe("fallback ordering", () => {
       noStaging: false,
       informedConsent: true,
       identityProtected: false,
-      consentDocumentUrl:
-        "https://abc.supabase.co/storage/v1/object/sign/consent-documents/user-1/doc.pdf?token=expired",
+      // A stale link to a stored document: the exporter re-signs it by key.
+      consentDocumentUrl: "/api/blobs/consent-documents/user-1/doc.pdf?exp=1&sig=expired",
     };
     const assets = await resolveAssets(
       input,

@@ -1,21 +1,10 @@
 /**
- * AccessProvider — single, app-wide source of auth + access state.
+ * AccessProvider — single, app-wide source of auth state.
  *
- * Mounted once at the layout root, it runs the ONE Supabase auth subscription
- * and the ONE admin-status fetch for the whole app, exposing them via context.
- * The header and project menu consume this instead of each running their own
- * effects + module cache, which previously re-fetched on every per-page header
- * remount.
- *
- * Behavior is a faithful lift of the prior AppHeader/ProjectMenu logic:
- *  - dev-auth bypass seeds the user synchronously (no unauth flash),
- *  - a 1.5s timeout resolves `authLoading` on slow/mobile sessions,
- *  - admin status goes through the existing cached helper, which keeps prior
- *    state on 429/5xx so a rate-limited check never revokes admin UI.
- *
- * Admin status is stored keyed by the user id it was fetched for and derived
- * against the current user, so logout/user-switch never needs a synchronous
- * state reset inside an effect.
+ * Mounted once at the layout root. It holds the session, exposes the auth
+ * actions, and lets components subscribe to sign-in and sign-out instead of
+ * each running its own check. Sessions are shared across tabs through a
+ * BroadcastChannel, so signing out in one tab signs out the others.
  *
  * @author TheTechMargin
  * @copyright 2025 TheTechMargin
@@ -28,42 +17,57 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
-import { createClient } from "@/lib/supabase/client";
-import type { User, AuthChangeEvent, Session } from "@supabase/supabase-js";
-import { DEV_USER, isDevAuthClient } from "@/lib/dev-auth";
-import {
-  fetchAdminStatus,
-  clearAdminStatusCache,
-  type AdminStatus,
-} from "@/lib/admin-status";
+import * as authApi from "@/lib/api-client/auth";
+import { ApiError } from "@/lib/api-client/http";
 
-export type AppRole = AdminStatus["role"];
+export interface AccessUser {
+  id: string;
+  email: string;
+}
+
+export type AuthEvent =
+  | { type: "SIGNED_IN"; user: AccessUser; fresh: boolean }
+  | { type: "SIGNED_OUT" };
+
+export interface AuthActionResult {
+  ok: boolean;
+  error?: string;
+  code?: string;
+}
 
 export interface AccessState {
-  user: User | null;
+  user: AccessUser | null;
   authLoading: boolean;
-  isAdmin: boolean;
-  isSuperAdmin: boolean;
-  role: AppRole;
-  pendingInvites: number;
-  /** Force-refresh the admin signal (e.g. when opening the menu). */
-  refreshAccess: () => void;
+  signIn: (email: string, password: string) => Promise<AuthActionResult>;
+  signUp: (email: string, password: string) => Promise<AuthActionResult>;
+  signOut: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<AuthActionResult>;
+  resetPassword: (token: string, password: string) => Promise<AuthActionResult>;
+  refresh: () => Promise<AccessUser | null>;
+  /** Called on sign-in and sign-out; returns an unsubscribe function. */
+  subscribe: (listener: (event: AuthEvent) => void) => () => void;
 }
+
+const noop = async (): Promise<AuthActionResult> => ({ ok: false, error: "Not ready" });
 
 const DEFAULT_STATE: AccessState = {
   user: null,
   authLoading: true,
-  isAdmin: false,
-  isSuperAdmin: false,
-  role: null,
-  pendingInvites: 0,
-  refreshAccess: () => {},
+  signIn: noop,
+  signUp: noop,
+  signOut: async () => {},
+  requestPasswordReset: noop,
+  resetPassword: noop,
+  refresh: async () => null,
+  subscribe: () => () => {},
 };
 
-// Default is the unauthenticated state so a stray consumer rendered outside the
+// Default is the signed-out state so a stray consumer rendered outside the
 // provider degrades gracefully instead of throwing.
 const AccessContext = createContext<AccessState>(DEFAULT_STATE);
 
@@ -71,118 +75,144 @@ export function useAccess(): AccessState {
   return useContext(AccessContext);
 }
 
+const CHANNEL = "fc-auth";
+
+function describe(error: unknown): AuthActionResult {
+  if (error instanceof ApiError) return { ok: false, error: error.message, code: error.code };
+  return { ok: false, error: "Something went wrong. Try again." };
+}
+
 export function AccessProvider({ children }: { children: ReactNode }) {
-  const supabase = createClient();
+  const [user, setUser] = useState<AccessUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // Dev auth bypass seeds the user synchronously so there's no unauthenticated
-  // flash during hydration. Lazy init avoids a setState-in-effect; likewise
-  // authLoading starts false when there is nothing to load.
-  const [user, setUser] = useState<User | null>(() =>
-    isDevAuthClient()
-      ? ({ id: DEV_USER.id, email: DEV_USER.email } as User)
-      : null,
-  );
-  const [authLoading, setAuthLoading] = useState(
-    () => !isDevAuthClient() && !!supabase,
-  );
-  // Admin status tagged with the user it belongs to — derived below, so a
-  // user change invalidates it without a synchronous reset.
-  const [admin, setAdmin] = useState<{
-    userId: string;
-    status: AdminStatus;
-  } | null>(null);
+  const listeners = useRef(new Set<(event: AuthEvent) => void>());
+  const loadedOnce = useRef(false);
+  const channel = useRef<BroadcastChannel | null>(null);
+  // Mirrors `user` so a transition can be detected without comparing inside a
+  // state updater — React runs those during render, and subscribers set state.
+  const currentUser = useRef<AccessUser | null>(null);
 
-  // Single auth subscription for the whole app.
+  const emit = useCallback((event: AuthEvent) => {
+    for (const listener of listeners.current) listener(event);
+  }, []);
+
+  const applyUser = useCallback(
+    (next: AccessUser | null, options: { broadcast?: boolean } = {}) => {
+      const previous = currentUser.current;
+      const changed = previous?.id !== next?.id;
+
+      currentUser.current = next;
+      setUser(next);
+
+      if (changed) {
+        if (next) emit({ type: "SIGNED_IN", user: next, fresh: loadedOnce.current });
+        else if (previous) emit({ type: "SIGNED_OUT" });
+      }
+
+      if (options.broadcast) channel.current?.postMessage({ type: "session-changed" });
+    },
+    [emit],
+  );
+
+  const refresh = useCallback(async (): Promise<AccessUser | null> => {
+    try {
+      const { user: next } = await authApi.getSession();
+      applyUser(next);
+      return next;
+    } catch {
+      applyUser(null);
+      return null;
+    } finally {
+      loadedOnce.current = true;
+      setAuthLoading(false);
+    }
+  }, [applyUser]);
+
   useEffect(() => {
-    // Dev auth bypass handled by the lazy initializer above; no client → the
-    // authLoading initializer already resolved to false.
-    if (isDevAuthClient() || !supabase) return;
-
-    let mounted = true;
+    let active = true;
+    // Slow or offline sessions should not hold the UI in a loading state.
     const timeout = setTimeout(() => {
-      if (mounted) setAuthLoading(false);
+      if (active) setAuthLoading(false);
     }, 1500);
 
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (mounted) {
-          setUser(data.session?.user ?? null);
-          setAuthLoading(false);
-          clearTimeout(timeout);
-        }
-      } catch {
-        if (mounted) {
-          setAuthLoading(false);
-          clearTimeout(timeout);
-        }
-      }
-    })();
+    void refresh().finally(() => clearTimeout(timeout));
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, session: Session | null) => {
-        if (!mounted) return;
-        setUser(session?.user ?? null);
-        if (!session?.user) {
-          clearAdminStatusCache();
-          setAdmin(null);
+    if (typeof BroadcastChannel !== "undefined") {
+      channel.current = new BroadcastChannel(CHANNEL);
+      channel.current.onmessage = () => {
+        void refresh();
+      };
+    }
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+      channel.current?.close();
+      channel.current = null;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refresh]);
+
+  const value = useMemo<AccessState>(
+    () => ({
+      user,
+      authLoading,
+      async signIn(email, password) {
+        try {
+          const { user: next } = await authApi.signIn(email, password);
+          applyUser(next, { broadcast: true });
+          return { ok: true };
+        } catch (error) {
+          return describe(error);
         }
       },
-    );
-
-    return () => {
-      mounted = false;
-      clearTimeout(timeout);
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
-
-  // Admin status follows the user. Keeps prior state on transient failure
-  // (fetchAdminStatus rejects on 429/5xx); only an authoritative result mutates.
-  useEffect(() => {
-    const userId = user?.id;
-    if (!userId) return;
-    let cancelled = false;
-    fetchAdminStatus()
-      .then((status) => {
-        if (!cancelled) setAdmin({ userId, status });
-      })
-      .catch(() => {
-        /* keep prior state on transient failure */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  const refreshAccess = useCallback(() => {
-    const userId = user?.id;
-    if (!userId) return;
-    fetchAdminStatus({ force: true })
-      .then((status) => setAdmin({ userId, status }))
-      .catch(() => {
-        /* keep prior state on transient failure */
-      });
-  }, [user?.id]);
-
-  // Derive against the current user — stale status from a previous user never
-  // leaks across a login switch.
-  const current = user?.id && admin?.userId === user.id ? admin.status : null;
-  const role: AppRole = current?.role ?? null;
-
-  const value: AccessState = {
-    user,
-    authLoading,
-    isAdmin: current?.authenticated ?? false,
-    isSuperAdmin: role === "super_admin",
-    role,
-    pendingInvites: current?.pendingInvites ?? 0,
-    refreshAccess,
-  };
-
-  return (
-    <AccessContext.Provider value={value}>{children}</AccessContext.Provider>
+      async signUp(email, password) {
+        try {
+          const { user: next } = await authApi.signUp(email, password);
+          applyUser(next, { broadcast: true });
+          return { ok: true };
+        } catch (error) {
+          return describe(error);
+        }
+      },
+      async signOut() {
+        try {
+          await authApi.signOut();
+        } finally {
+          applyUser(null, { broadcast: true });
+        }
+      },
+      async requestPasswordReset(email) {
+        try {
+          await authApi.requestPasswordReset(email);
+          return { ok: true };
+        } catch (error) {
+          return describe(error);
+        }
+      },
+      async resetPassword(token, password) {
+        try {
+          const { user: next } = await authApi.resetPassword(token, password);
+          applyUser(next, { broadcast: true });
+          return { ok: true };
+        } catch (error) {
+          return describe(error);
+        }
+      },
+      refresh,
+      subscribe(listener) {
+        listeners.current.add(listener);
+        return () => listeners.current.delete(listener);
+      },
+    }),
+    [user, authLoading, applyUser, refresh],
   );
+
+  return <AccessContext.Provider value={value}>{children}</AccessContext.Provider>;
 }

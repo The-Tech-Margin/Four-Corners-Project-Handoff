@@ -1,11 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  listUserAssets,
-  type ListUserAssetsOptions,
-} from "@/lib/db/user-assets";
-import { getVoiceRecordingSignedUrl } from "@/lib/supabase-voice-storage";
+import { listAssets } from "@/lib/api-client/storage";
+import { getVoiceRecordingUrl } from "@/lib/api-client/voice";
 import type { UserAsset, UserAssetMediaType } from "@/lib/field-registry";
 
 export interface UseUserAssetsOptions {
@@ -47,7 +44,7 @@ async function resolveAudioUrls(assets: UserAsset[]): Promise<UserAsset[]> {
   const resigned = new Map<string, string>();
   await Promise.all(
     needs.map(async (a) => {
-      const url = await getVoiceRecordingSignedUrl(a.storagePath);
+      const url = await getVoiceRecordingUrl(a.storagePath);
       if (url) resigned.set(a.id, url);
     }),
   );
@@ -105,16 +102,14 @@ export function useUserAssets(
       setLoading(true);
       setError(null);
 
-      const listOpts: ListUserAssetsOptions = {
-        query: snap.query || undefined,
-        mediaTypes: snap.mediaTypes,
-        sort: snap.sort,
-        limit: snap.pageSize,
-        offset: pageOffset,
-      };
-
       try {
-        const result = await listUserAssets(listOpts);
+        const result = await listAssets({
+          query: snap.query || undefined,
+          mediaTypes: snap.mediaTypes,
+          sort: snap.sort,
+          limit: snap.pageSize,
+          offset: pageOffset,
+        });
         // Discard if a newer fetch has started OR the filters have changed.
         if (reqId !== reqIdRef.current) return;
         if (snap.filterKey !== filterKeyRef.current) return;

@@ -2,7 +2,7 @@
  * Storage Manager - Single Source of Truth for Data Persistence
  *
  * HIERARCHY:
- * - Logged IN:  Supabase (cloud) is source of truth
+ * - Logged IN:  storage (cloud) is source of truth
  * - Logged OUT: IndexedDB/localStorage (local) is source of truth
  *
  * @author TheTechMargin
@@ -67,7 +67,7 @@ export function restorePreAuthWork(): Record<string, unknown> | null {
 
 /**
  * Clear all local storage when user signs in
- * Prevents stale local data from conflicting with Supabase data
+ * Prevents stale local data from conflicting with storage data
  */
 export async function clearLocalStorageOnSignIn(): Promise<void> {
   try {

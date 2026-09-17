@@ -10,7 +10,7 @@ import {
   optionsFromEditorState,
   type EditorExportState,
 } from "@/lib/export/normalize";
-import type { ProjectRecord } from "@/lib/db/projects-transforms";
+import type { ProjectRecord } from "@/lib/projects/types";
 import type { FourCornersMetadataExtended } from "@/lib/field-registry";
 
 function fixtureMetadata(): FourCornersMetadataExtended {
@@ -77,7 +77,7 @@ function fixtureRecord(overrides: Partial<ProjectRecord> = {}): ProjectRecord {
     slug: "my-project",
     title: "My Project",
     metadata: fixtureMetadata(),
-    main_image_url: "https://abc.supabase.co/storage/v1/object/public/context-media/user-1/main-images/proj-1.jpg",
+    main_image_url: "https://media.example.org/user-1/main-images/proj-1.jpg",
     main_image_storage_path: "user-1/main-images/proj-1.jpg",
     published: false,
     in_gallery: false,

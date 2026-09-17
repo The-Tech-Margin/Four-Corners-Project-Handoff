@@ -43,6 +43,11 @@ vi.mock("@/components/sketchboard/shapes/types", async (importOriginal) => {
 
 import { storeToCanvasDocument, getLayout } from "@/hooks/use-canvas-bridge";
 
+type StoreState = Parameters<typeof storeToCanvasDocument>[0];
+
+/** Fixtures set only the fields the bridge reads. */
+const asStore = (state: Record<string, unknown>) => state as unknown as StoreState;
+
 beforeEach(() => {
   mockState = { ...TEST_STORE_STATE };
 });
@@ -50,7 +55,7 @@ beforeEach(() => {
 describe("Canvas Editor — Shape Generation", () => {
   describe("storeToCanvasDocument with populated data", () => {
     it("always generates 4 zone shapes", () => {
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const zones = doc.shapes.filter((s) => s.type === "zone");
       expect(zones).toHaveLength(EXPECTED_CANVAS_SHAPES.zones);
       expect(zones.map((z) => z.data.label).sort()).toEqual(
@@ -59,7 +64,7 @@ describe("Canvas Editor — Shape Generation", () => {
     });
 
     it("generates PhotoCard with empty metadata when imageSrc is null", () => {
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const photos = doc.shapes.filter((s) => s.type === "photo-card");
       expect(photos).toHaveLength(1);
       expect(photos[0].metadata.empty).toBe(true);
@@ -67,7 +72,7 @@ describe("Canvas Editor — Shape Generation", () => {
 
     it("generates PhotoCard when imageSrc is set", () => {
       mockState = { ...TEST_STORE_STATE, imageSrc: "data:image/jpeg;base64,abc" };
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const photos = doc.shapes.filter((s) => s.type === "photo-card");
       expect(photos).toHaveLength(1);
       expect(photos[0].data.imageUrl).toBe("data:image/jpeg;base64,abc");
@@ -75,7 +80,7 @@ describe("Canvas Editor — Shape Generation", () => {
     });
 
     it("generates context-item shapes for each context entry", () => {
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const items = doc.shapes.filter((s) => s.type === "context-item");
       expect(items).toHaveLength(TEST_STORE_STATE.context.length);
       items.forEach((item, i) => {
@@ -85,7 +90,7 @@ describe("Canvas Editor — Shape Generation", () => {
     });
 
     it("generates text-block shapes only for populated backstory fields", () => {
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const textBlocks = doc.shapes.filter(
         (s) => s.type === "text-block" && s.metadata?.cornerAffinity === "backstory",
       );
@@ -98,7 +103,7 @@ describe("Canvas Editor — Shape Generation", () => {
     });
 
     it("generates text-block shapes only for populated CC fields", () => {
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const ccBlocks = doc.shapes.filter(
         (s) => s.type === "text-block" && s.metadata?.cornerAffinity === "cc" && !s.metadata?.readOnly,
       );
@@ -109,20 +114,20 @@ describe("Canvas Editor — Shape Generation", () => {
     });
 
     it("generates no link-card shapes when links array is empty", () => {
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const links = doc.shapes.filter((s) => s.type === "link-card");
       expect(links).toHaveLength(0);
     });
 
     it("generates voice-note shapes for transcriptions", () => {
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const voices = doc.shapes.filter((s) => s.type === "voice-note");
       expect(voices).toHaveLength(EXPECTED_CANVAS_SHAPES.voiceNotes);
       expect(voices[0].data.transcriptionId).toBe(TEST_STORE_STATE.voiceTranscriptions[0].id);
     });
 
     it("sets correct zone colors from resolved corner colors", () => {
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const zones = doc.shapes.filter((s) => s.type === "zone");
       const imageryZone = zones.find((z) => z.data.label === "IMAGERY");
       expect(imageryZone?.data.color).toBe("#a855f7");
@@ -157,25 +162,29 @@ describe("Canvas Editor — Shape Generation", () => {
 
   describe("Canvas ↔ Form parity", () => {
     it("text-block content matches store field values exactly", () => {
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const textBlocks = doc.shapes.filter((s) => s.type === "text-block" && s.data.fieldMapping);
 
       for (const block of textBlocks) {
         const fm = (block.data.fieldMapping || block.metadata?.fieldMapping) as string | undefined;
         if (!fm) continue;
         const [section, field] = fm.split(".");
-        const storeValue = (mockState as any)[section]?.[field] ?? "";
+        const sectionValue = (mockState as Record<string, unknown>)[section] as
+          | Record<string, unknown>
+          | undefined;
+        const storeValue = sectionValue?.[field] ?? "";
         expect(block.data.content).toBe(storeValue);
       }
     });
 
     it("context-item storage URLs match store context array", () => {
-      const doc = storeToCanvasDocument(mockState as any);
+      const doc = storeToCanvasDocument(asStore(mockState));
       const items = doc.shapes.filter((s) => s.type === "context-item");
 
       items.forEach((item, i) => {
         const storeCtx = TEST_STORE_STATE.context[i];
-        expect(item.data.imageSrc).toBe((storeCtx as any).src || storeCtx.storage_url || "");
+        const src = (storeCtx as { src?: string }).src;
+        expect(item.data.imageSrc).toBe(src || storeCtx.storage_url || "");
       });
     });
   });

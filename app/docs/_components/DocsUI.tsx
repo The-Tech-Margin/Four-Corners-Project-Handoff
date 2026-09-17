@@ -14,7 +14,6 @@ import type {
   DocApi,
   DocStep,
   DocVisibility,
-  DocVersion,
 } from "../_data/docsData";
 
 const cornerVar = (token: string) => `var(--fc-corner-${token})`;
@@ -198,28 +197,4 @@ export function ApiTable({ rows }: { rows: DocApi[] }) {
 
 export function Callout({ children }: { children: ReactNode }) {
   return <div className={styles.callout}>{children}</div>;
-}
-
-/** Release history list (newest first). Each entry is its own anchor target. */
-export function VersionHistory({ versions }: { versions: DocVersion[] }) {
-  return (
-    <div>
-      {versions.map((v) => (
-        <section key={v.version} id={`v-${v.version}`} className={styles.card}>
-          <div className={styles.cardHead}>
-            <Badge>{v.version}</Badge>
-            <span className={styles.cardTitle} style={{ fontSize: "1rem" }}>
-              {v.summary}
-            </span>
-            <span className={styles.cardSub}>{v.date}</span>
-          </div>
-          <ul className={styles.changeList}>
-            {v.changes.map((c, i) => (
-              <li key={i}>{c}</li>
-            ))}
-          </ul>
-        </section>
-      ))}
-    </div>
-  );
 }

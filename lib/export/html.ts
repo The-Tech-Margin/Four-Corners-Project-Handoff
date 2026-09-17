@@ -13,6 +13,7 @@
  * Worker/Node-safe: pure string generation, no DOM.
  */
 
+import { GENERATOR } from "@/lib/attribution";
 import { FIELD_REGISTRY } from "../field-registry";
 import type { FourCornersMetadataExtended } from "../field-registry";
 import { getValueByPath, hasValue } from "../field-utils";
@@ -471,6 +472,7 @@ export function buildViewerHtml(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="generator" content="${GENERATOR}">
   <title>${escapeHtml(caption)}</title>
   <style>${VIEWER_CSS}</style>
 </head>

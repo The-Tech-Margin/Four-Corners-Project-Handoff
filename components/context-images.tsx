@@ -2,20 +2,20 @@
 
 import { useState, useRef, useEffect, DragEvent } from "react";
 import { useFourCornersStore } from "@/lib/store";
-import { notifyFile, notifyAuth, notifySave } from "@/lib/notify";
+import { notifyFile, notifyAuth, notifyPublish, notifySave } from "@/lib/notify";
 import { AddContextDialog } from "@/components/add-context-dialog";
 import { AssetLibraryModal } from "@/components/asset-library-modal";
 import { ContextImageViewer } from "@/components/context-image-viewer";
 import { Library, Upload } from "lucide-react";
 import { validateUpload, MAX_UPLOAD_BYTES, formatBytes } from "@/lib/upload-limits";
-import { checkQuotaForUpload } from "@/lib/db/user-storage";
+import { checkQuotaForUpload } from "@/lib/api-client/quota";
 import { SectionHeader } from "@/components/section-header";
 import { mediaStorage } from "@/lib/media-storage";
 import { generateThumbnail } from "@/lib/thumbnail";
 import { maybeConvertHeic } from "@/lib/heic-to-jpeg";
 import type { ContextItem, UserAsset } from "@/lib/field-registry";
-import { createClient } from "@/lib/supabase/client";
-import { createProject } from "@/lib/db/projects";
+import { createChildProject } from "@/lib/api-client/project-actions";
+import { useAccess } from "@/components/access-provider";
 
 interface ContextImagesProps {
   initiallyExpanded?: boolean;
@@ -28,6 +28,7 @@ const REORDER_MIME = "application/x-fc-context-reorder";
 export function ContextImages({
   initiallyExpanded = false,
 }: ContextImagesProps) {
+  const { user } = useAccess();
   const store = useFourCornersStore();
   const {
     context,
@@ -80,11 +81,6 @@ export function ContextImages({
 
     setUploading(true);
 
-    // Resolve the user once per batch rather than per-file.
-    const supabase = createClient();
-    const { data: { user } = { user: null } } =
-      supabase ? await supabase.auth.getUser() : { data: { user: null } };
-
     try {
       for (let i = 0; i < files.length; i++) {
         let file = files[i];
@@ -119,7 +115,7 @@ export function ContextImages({
 
         // Pre-flight quota check — same skip-on-fail semantics.
         if (user) {
-          const quota = await checkQuotaForUpload(user.id, file.size);
+          const quota = await checkQuotaForUpload(file.size);
           if (!quota.ok) {
             notifyFile.quotaExceeded(quota.used, quota.limit, quota.plan);
             continue;
@@ -232,12 +228,7 @@ export function ContextImages({
     "";
 
   const handleMakeMainImage = async (imageIndex: number) => {
-    const supabase = createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.user) {
+    if (!user) {
       notifyAuth.pleaseSignIn();
       return;
     }
@@ -249,10 +240,6 @@ export function ContextImages({
     const currentProjectId = store.projectId;
 
     try {
-      // Get the full-size image URL
-      const mainImageUrl =
-        contextImage.storage_url || contextImage.url || contextImage.src || "";
-
       // Create metadata for new file, copying from current file
       // Carry over all context images EXCEPT the one being promoted to main
       const newContext = context.filter((_, idx) => idx !== imageIndex);
@@ -291,18 +278,20 @@ export function ContextImages({
       const timestamp = Date.now();
       const newSlug = `${baseSlug}-${timestamp}`;
 
-      // Create new project with parent linking (daisy-chaining)
-      // This automatically publishes and adds to gallery
-      const newProject = await createProject(
-        newMetadata,
-        session.user.id,
-        newSlug,
-        mainImageUrl,
-        undefined, // mainImageStoragePath
-        currentProjectId || undefined, // parentProjectId
-      );
+      // Chain the new project to this one. The server publishes it to the
+      // gallery when the account's gallery limit allows.
+      if (!currentProjectId) {
+        notifySave.createFailed("Save this project before linking from it");
+        return;
+      }
+
+      const { project: newProject, warnings } = await createChildProject(currentProjectId, {
+        metadata: newMetadata,
+        slug: newSlug,
+      });
 
       notifyFile.linkedCreated();
+      if (warnings.includes("GALLERY_LIMIT_REACHED")) notifyPublish.limitReached();
 
       // Navigate to new file
       window.location.href = `/?file=${newProject.id}`;

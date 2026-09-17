@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import type { ProjectRecord } from "@/lib/db/projects";
+import type { ProjectRecord } from "@/lib/projects/types";
 import type { FourCornersMetadataExtended } from "@/lib/schema";
 import { isVideoUrl } from "@/lib/media-utils";
 import { sizedImageUrl, THUMB_WIDTH, THUMB_QUALITY } from "@/lib/image-url";
@@ -169,7 +169,7 @@ export function FCProjectList({
                       }}
                     />
                   ) : (
-                    // eslint-disable-next-line @next/next/no-img-element -- external Supabase storage URLs, fidelity-critical photography
+                    // eslint-disable-next-line @next/next/no-img-element -- stored photography, fidelity-critical
                     <img
                       src={
                         project.main_image_thumbnail_url ||

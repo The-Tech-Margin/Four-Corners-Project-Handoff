@@ -129,7 +129,7 @@ export const messages = {
     removedFromGallery: "Removed from gallery",
     failed: "Failed to update visibility",
     limitReached:
-      "Gallery limit reached. During the private beta, you can have one project in the gallery at a time — unpublish your current gallery project to publish this one. The limit will lift when the app goes public. Thanks for being part of the beta! Send suggestions to sonia@thetechmargin.com.",
+      "Gallery limit reached — remove a project from the gallery to publish this one.",
   },
 
   share: {
@@ -175,7 +175,6 @@ export const messages = {
 
   // Configuration
   config: {
-    supabaseNotConfigured: "Supabase is not configured",
   },
 
   // Generic
@@ -477,9 +476,6 @@ export const notifyVoice = {
 };
 
 export const notifyConfig = {
-  supabaseNotConfigured() {
-    notify.error(messages.config.supabaseNotConfigured);
-  },
 };
 
 // Default export for simple usage

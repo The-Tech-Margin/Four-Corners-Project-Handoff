@@ -1,11 +1,11 @@
 /**
- * Persona palette provider — reads ?persona= and applies
- * per-tab CSS variable overrides. Falls back to the global
- * palette when no persona param is present.
+ * Persona palette provider — resolves a theme preset from `?persona=<id>`
+ * (see lib/palette-presets.ts) or the stored per-browser preference, and
+ * applies its CSS variable overrides.
  *
- * Persistence: the slug is stored in sessionStorage so the
- * palette survives internal navigation (router.push, Link clicks).
- * sessionStorage is per-tab, so concurrent demos stay isolated.
+ * Persistence: the preset id is mirrored into sessionStorage so the palette
+ * survives internal navigation (router.push, Link clicks). sessionStorage is
+ * per-tab, so concurrent demos stay isolated.
  *
  * @author TheTechMargin
  * @copyright 2025 TheTechMargin
@@ -16,8 +16,8 @@
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { applyPalette, resetPalette } from "@/lib/palette";
-import { useFourCornersStore } from "@/lib/store";
-import { getLayoutMode } from "@/lib/layout-modes";
+import { PALETTE_PRESETS } from "@/lib/palette-presets";
+import { readStoredPersona } from "@/lib/persona-preference";
 
 const STORAGE_KEY = "fc-persona";
 
@@ -86,13 +86,13 @@ export function PersonaProvider() {
   const searchParams = useSearchParams();
   const urlPersona = searchParams.get("persona");
 
-  // URL param takes priority; fall back to sessionStorage for
-  // navigation within the same tab (e.g. gallery → view → dashboard).
-  const persona = urlPersona || (
-    typeof window !== "undefined"
-      ? sessionStorage.getItem(STORAGE_KEY)
-      : null
-  );
+  // URL param takes priority, then the current tab's persona, then the
+  // preference this browser saved from the theme picker.
+  const persona =
+    urlPersona ||
+    (typeof window !== "undefined"
+      ? sessionStorage.getItem(STORAGE_KEY) || readStoredPersona()
+      : null);
 
   const paletteRef = useRef<{
     dark: Record<string, string>;
@@ -100,8 +100,6 @@ export function PersonaProvider() {
   } | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
     function applyCurrentTheme() {
       if (!paletteRef.current) return;
       const isLight = document.documentElement.classList.contains("light");
@@ -117,130 +115,48 @@ export function PersonaProvider() {
       updateFavicon();
     }
 
-    async function loadPaletteBySlug(slug: string) {
-      const res = await fetch(`/api/palettes/${encodeURIComponent(slug)}`, {
-        cache: "no-store",
-      });
-      if (!res.ok || cancelled) return;
-      return res.json();
-    }
-
-    async function loadGlobalPalette() {
-      const res = await fetch("/api/palettes/global", {
-        cache: "no-store",
-      });
-      if (!res.ok || cancelled) return null;
-      return res.json();
-    }
-
-    /**
-     * Check if a Supabase auth cookie exists (cheap, no network).
-     * Only when present do we pay for the /api/user/preferences call.
-     */
-    function hasAuthCookie(): boolean {
-      return document.cookie.split(";").some((c) => c.trim().startsWith("sb-") && c.includes("-auth-token"));
-    }
-
-    /**
-     * Fetch user preference with inline palette data.
-     * Returns the full palette object or null.
-     */
-    async function loadUserPreference(): Promise<{
-      slug: string;
-      dark_overrides: Record<string, string>;
-      light_overrides: Record<string, string>;
-    } | null> {
+    function clearCaches() {
       try {
-        const res = await fetch("/api/user/preferences", { cache: "no-store" });
-        if (!res.ok) return null;
-        const prefs = await res.json();
-        return prefs.palette ?? null;
+        sessionStorage.removeItem(STORAGE_KEY);
+        sessionStorage.removeItem("fc-palette-dark");
+        sessionStorage.removeItem("fc-palette-light");
+        localStorage.removeItem("fc-palette-dark");
+        localStorage.removeItem("fc-palette-light");
       } catch {
-        return null;
+        /* storage disabled */
       }
     }
 
-    async function load() {
-      try {
-        let data;
+    function load() {
+      const preset = persona
+        ? (PALETTE_PRESETS.find((p) => p.id === persona) ?? null)
+        : null;
 
-        if (persona) {
-          // Explicit persona — persist slug for tab navigation
-          sessionStorage.setItem(STORAGE_KEY, persona);
-          data = await loadPaletteBySlug(persona);
-        } else if (hasAuthCookie()) {
-          // Logged in — check user palette preference (returns inline palette data)
-          const userPalette = await loadUserPreference();
-
-          if (userPalette) {
-            sessionStorage.setItem(STORAGE_KEY, userPalette.slug);
-            data = userPalette;
-          } else {
-            // User has no preference — fall back to global
-            sessionStorage.removeItem(STORAGE_KEY);
-            data = await loadGlobalPalette();
-            if (data?.slug) {
-              sessionStorage.setItem(STORAGE_KEY, data.slug);
-            }
-
-            // Signal that this logged-in user has no palette preference
-            // so the theme prompt can show if dismissals < 3.
-            if (!cancelled) {
-              (window as unknown as Record<string, unknown>).__fcNoPalettePreference = true;
-              window.dispatchEvent(new CustomEvent("fc:no-palette-preference"));
-            }
-          }
-        } else {
-          // Not logged in — global palette only
-          sessionStorage.removeItem(STORAGE_KEY);
-          data = await loadGlobalPalette();
-          if (data?.slug) {
-            sessionStorage.setItem(STORAGE_KEY, data.slug);
-          }
-        }
-
-        if (!data || cancelled) {
-          resetPalette();
-          paletteRef.current = null;
-          try {
-            sessionStorage.removeItem("fc-palette-dark");
-            sessionStorage.removeItem("fc-palette-light");
-            localStorage.removeItem("fc-palette-dark");
-            localStorage.removeItem("fc-palette-light");
-          } catch { /* ignore */ }
-          updateFavicon();
-          return;
-        }
-
-        paletteRef.current = {
-          dark: data.dark_overrides || {},
-          light: data.light_overrides || {},
-        };
-
-        // Cache overrides for blocking script on next page load (prevents flash).
-        // Write to both sessionStorage (per-tab) and localStorage (cross-session)
-        // so the blocking script can apply the palette before first paint.
-        try {
-          const darkJson = JSON.stringify(data.dark_overrides || {});
-          const lightJson = JSON.stringify(data.light_overrides || {});
-          sessionStorage.setItem("fc-palette-dark", darkJson);
-          sessionStorage.setItem("fc-palette-light", lightJson);
-          localStorage.setItem("fc-palette-dark", darkJson);
-          localStorage.setItem("fc-palette-light", lightJson);
-        } catch { /* quota — skip */ }
-
-        // Apply persona's default layout mode if specified
-        if (data.default_layout_mode) {
-          const modeDef = getLayoutMode(data.default_layout_mode);
-          if (modeDef.id === data.default_layout_mode) {
-            useFourCornersStore.getState().setLayoutMode(data.default_layout_mode);
-          }
-        }
-
-        applyCurrentTheme();
-      } catch {
-        /* graceful fallback — default colours */
+      if (!preset) {
+        clearCaches();
+        resetPalette();
+        paletteRef.current = null;
+        updateFavicon();
+        return;
       }
+
+      paletteRef.current = { dark: preset.dark, light: preset.light };
+
+      // Cache overrides for the blocking script on the next page load so the
+      // palette is in place before first paint.
+      try {
+        sessionStorage.setItem(STORAGE_KEY, preset.id);
+        const darkJson = JSON.stringify(preset.dark);
+        const lightJson = JSON.stringify(preset.light);
+        sessionStorage.setItem("fc-palette-dark", darkJson);
+        sessionStorage.setItem("fc-palette-light", lightJson);
+        localStorage.setItem("fc-palette-dark", darkJson);
+        localStorage.setItem("fc-palette-light", lightJson);
+      } catch {
+        /* quota — skip */
+      }
+
+      applyCurrentTheme();
     }
 
     const observer = new MutationObserver((mutations) => {
@@ -274,7 +190,6 @@ export function PersonaProvider() {
     load();
 
     return () => {
-      cancelled = true;
       observer.disconnect();
       window.removeEventListener("fc:palette-changed", handlePaletteChanged);
       resetPalette();

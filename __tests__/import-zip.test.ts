@@ -58,7 +58,7 @@ function fixtureMetadata(): FourCornersMetadataExtended {
         mimeType: "image/png",
         src: `data:image/png;base64,${b64(BYTES.media)}`,
         storage_url:
-          "https://abc.supabase.co/storage/v1/object/public/context-media/foreign/pic.png",
+          "https://media.example.org/foreign/pic.png",
         storage_path: "foreign/pic.png",
         audioDataUrl: `data:audio/webm;base64,${b64(BYTES.contextAudio)}`,
         audioMimeType: "audio/webm",
@@ -82,7 +82,7 @@ function fixtureMetadata(): FourCornersMetadataExtended {
       identityProtected: false,
       consentDetails: "verbal",
       consentDocumentUrl:
-        "https://abc.supabase.co/storage/v1/object/sign/consent-documents/foreign/doc.pdf",
+        "https://media.example.org/docs/foreign/doc.pdf",
     },
     voiceTranscriptions: [
       {

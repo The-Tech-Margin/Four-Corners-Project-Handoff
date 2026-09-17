@@ -18,15 +18,14 @@ import { SectionHeading, Callout } from "@/app/docs/_components/DocsUI";
 import { DocsToc } from "@/app/docs/_components/DocsToc";
 
 export const metadata = {
-  title: "About — Four Corners Metadata Editor",
+  title: "About — Four Corners",
   description:
-    "A media-literacy tool for reading images critically — surfacing the context, sources, backstory, and authorship behind a photograph. A digital implementation of Fred Ritchin's Four Corners Project.",
+    "A media-literacy tool for reading images critically — surfacing the context, sources, backstory, and authorship behind a photograph.",
 };
 
 const TOC = [
   { id: "why", label: "Why Four Corners" },
   { id: "four-corners", label: "The four corners" },
-  { id: "writing-with-light", label: "Writing With Light" },
   { id: "features", label: "Key features" },
 ];
 
@@ -142,10 +141,10 @@ export default function AboutPage() {
             to the context that gives it meaning.
           </p>
           <p className={styles.lede}>
-            This editor is a working implementation of that protocol. By making the
-            context behind an image visible, it asks viewers to read photographs
-            critically rather than take them at face value — and gives
-            photographers the means to stand behind their work as authors.
+            This editor is built on that idea. By making the context behind an
+            image visible, it asks viewers to read photographs critically rather
+            than take them at face value — and gives photographers the means to
+            stand behind their work as authors.
           </p>
 
           {/* The four corners */}
@@ -164,42 +163,6 @@ export default function AboutPage() {
               </div>
             ))}
           </div>
-
-          {/* Writing With Light — founding partner */}
-          <SectionHeading id="writing-with-light">Writing With Light</SectionHeading>
-          <p className={styles.lede} style={{ marginBottom: "0.9rem" }}>
-            Four Corners&rsquo; founding partner is{" "}
-            <a
-              href="https://wwlight.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.calloutLink}
-            >
-              Writing With Light
-            </a>
-            , a movement for authenticity and credibility in nonfiction
-            photography, formed in response to AI-generated imagery and digital
-            manipulation.
-          </p>
-          <p className={styles.lede}>
-            Its principles map directly onto this tool: photographs treated as
-            visual quotations that cannot be altered without disclosure; the
-            photographer recognized as an author; context that travels with the
-            image; and concise, transparent codes of ethics from photographers and
-            outlets. The standard has been endorsed by photographers and
-            institutions including Magnum Photos.
-          </p>
-          <Callout>
-            Read the principles and join the movement at{" "}
-            <a
-              href="https://wwlight.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.calloutLink}
-            >
-              wwlight.org →
-            </a>
-          </Callout>
 
           {/* Key features */}
           <SectionHeading id="features">Key features</SectionHeading>

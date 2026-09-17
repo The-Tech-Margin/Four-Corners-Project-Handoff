@@ -273,7 +273,7 @@ export function FCPanelImagery({
                     </div>
                   ) : null
                 ) : itemSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- external Supabase URLs
+                  // eslint-disable-next-line @next/next/no-img-element -- external storage URLs
                   <img
                     src={itemSrc}
                     alt={item.caption || `Related image ${i + 1}`}

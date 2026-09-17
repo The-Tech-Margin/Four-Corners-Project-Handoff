@@ -7,11 +7,9 @@
  * Inherits the app theme (dark/light + persona) via --fc-* variables.
  */
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
-import { createClient } from "@/lib/supabase/server";
-import { DEV_AUTH_COOKIE, isDevAuthEnabled } from "@/lib/dev-auth";
+import { getServerUser } from "@/lib/server/session";
 import { docsData } from "../_data/docsData";
 import styles from "../docs.module.css";
 import {
@@ -46,16 +44,8 @@ export const metadata = {
 
 export default async function CreatorDocsPage() {
   // Auth gate — mirror of /dashboard
-  const cookieStore = await cookies();
-  const isDevAuth =
-    isDevAuthEnabled() && cookieStore.get(DEV_AUTH_COOKIE)?.value === "true";
-  if (!isDevAuth) {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) redirect("/?auth=required");
-  }
+  const user = await getServerUser();
+  if (!user) redirect("/?auth=required");
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
@@ -122,7 +112,7 @@ export default async function CreatorDocsPage() {
 
           <p className={styles.metaLine}>
             Generated {docsData.generatedAt} from
-            lib/field-registry.ts + lib/openapi-spec.ts · Four Corners · TheTechMargin
+            lib/field-registry.ts + lib/openapi-spec.ts
           </p>
         </div>
       </main>

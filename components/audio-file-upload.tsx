@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useAIGateway } from "@/hooks/use-ai-gateway";
 import { useFourCornersStore } from "@/lib/store";
+import { useAccess } from "@/components/access-provider";
 import { notify, notifyFile } from "@/lib/notify";
 import { isAudioMimeTypeSupported } from "@/lib/audio-utils";
 import { Upload, FileAudio, X, Loader2, Library } from "lucide-react";
@@ -10,8 +11,7 @@ import { FCAudioPlayer } from "./viewer/fc-audio-player";
 import { AssetLibraryModal } from "./asset-library-modal";
 import type { UserAsset } from "@/lib/field-registry";
 import { validateUpload, MAX_UPLOAD_BYTES, formatBytes } from "@/lib/upload-limits";
-import { checkQuotaForUpload } from "@/lib/db/user-storage";
-import { createClient } from "@/lib/supabase/client";
+import { checkQuotaForUpload } from "@/lib/api-client/quota";
 import { mediaStorage } from "@/lib/media-storage";
 import { useEagerAudioUpload } from "@/hooks/use-eager-audio-upload";
 
@@ -49,6 +49,7 @@ export function AudioFileUpload({
   compact = false,
   className = "",
 }: AudioFileUploadProps) {
+  const { user } = useAccess();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { eagerUploadTranscription } = useEagerAudioUpload();
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -158,17 +159,13 @@ export function AudioFileUpload({
         return;
       }
 
-      // Quota check
-      const supabase = createClient();
-      if (supabase) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const quota = await checkQuotaForUpload(user.id, file.size);
-          if (!quota.ok) {
-            notifyFile.quotaExceeded(quota.used, quota.limit, quota.plan);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-            return;
-          }
+      // Quota check — only meaningful once signed in.
+      if (user) {
+        const quota = await checkQuotaForUpload(file.size);
+        if (!quota.ok) {
+          notifyFile.quotaExceeded(quota.used, quota.limit, quota.plan);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
         }
       }
 
@@ -195,7 +192,7 @@ export function AudioFileUpload({
         const transcribedText = "";
 
         // Persist the raw audio Blob to IDB (mediaStorage) so it survives
-        // mobile tab-discard / browser refresh before the Supabase upload
+        // mobile tab-discard / browser refresh before the upload
         // completes. Cleared by useProjectSave after a successful upload.
         let audioBlobId: number | undefined;
         try {

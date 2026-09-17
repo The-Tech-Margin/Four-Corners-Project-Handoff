@@ -10,7 +10,8 @@
 
 import { generateIIIFManifest } from "./exportIIIF";
 import type { FourCornersMetadataExtended } from "./field-registry";
-import { getProject, type ProjectRecord } from "./db/projects";
+import { getProject } from "./api-client/project-actions";
+import type { ProjectRecord } from "./projects/types";
 import { normalizeFromProjectRecord } from "./export/normalize";
 import { startExport } from "./export/client";
 import type { ExportOptions } from "./export/types";
@@ -24,11 +25,7 @@ const JSON_EXPORT_OPTIONS: ExportOptions = {
 };
 
 async function resolveFullProject(project: ProjectRecord): Promise<ProjectRecord> {
-  try {
-    return await getProject(project.id);
-  } catch {
-    return project;
-  }
+  return (await getProject(project.id)) ?? project;
 }
 
 async function buildProjectJSON(project: ProjectRecord): Promise<{

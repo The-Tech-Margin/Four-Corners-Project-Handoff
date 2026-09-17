@@ -8,10 +8,11 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Four Corners Metadata Editor",
+    id: "/",
+    name: "Four Corners",
     short_name: "Four Corners",
     description:
-      "Digital implementation of Fred Ritchin's Four Corners Project — enriching photojournalism with context, backstory, related imagery, and ethical documentation.",
+      "Structured photo metadata editor built on the four-corners model — context, links, backstory, and authorship & ethics.",
     start_url: "/",
     scope: "/",
     display: "standalone",

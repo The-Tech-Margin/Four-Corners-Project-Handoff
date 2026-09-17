@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildSearchIndex, searchProjects } from "@/lib/search-projects";
-import type { ProjectRecord } from "@/lib/db/projects";
+import type { ProjectRecord } from "@/lib/projects/types";
 
 /** Minimal project stub for testing */
 function makeProject(
@@ -43,7 +43,7 @@ describe("buildSearchIndex", () => {
           links: [],
           creativeCommons: { copyright: "CC-BY", description: "Free to use" },
         },
-      } as any),
+      } as unknown as Parameters<typeof makeProject>[1]),
     ];
     const index = buildSearchIndex(projects);
     const text = index.get("p1")!;
@@ -66,7 +66,7 @@ describe("buildSearchIndex", () => {
           links: [],
           creativeCommons: { copyright: "", description: "" },
         },
-      } as any),
+      } as unknown as Parameters<typeof makeProject>[1]),
     ];
     const index = buildSearchIndex(projects);
     const text = index.get("p1")!;
@@ -86,7 +86,7 @@ describe("buildSearchIndex", () => {
           links: [{ title: "Source Article", url: "https://example.com", source: "Reuters" }],
           creativeCommons: { copyright: "", description: "" },
         },
-      } as any),
+      } as unknown as Parameters<typeof makeProject>[1]),
     ];
     const index = buildSearchIndex(projects);
     const text = index.get("p1")!;
@@ -111,7 +111,7 @@ describe("buildSearchIndex", () => {
             identityProtected: false,
           },
         },
-      } as any),
+      } as unknown as Parameters<typeof makeProject>[1]),
     ];
     const index = buildSearchIndex(projects);
 

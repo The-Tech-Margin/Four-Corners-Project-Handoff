@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { VoiceTranscription } from "@/lib/field-registry";
 import { FCAudioPlayer } from "./viewer/fc-audio-player";
-import { getVoiceRecordingSignedUrl } from "@/lib/supabase-voice-storage";
+import { getVoiceRecordingUrl } from "@/lib/api-client/voice";
 import { mediaStorage } from "@/lib/media-storage";
 
 /** A transcription "has audio" if any resolvable source exists. */
@@ -81,7 +81,7 @@ function useResolvedAudioSrc(vt: VoiceTranscription): string | null {
 
     const resolve = async () => {
       if (vt.audioStoragePath) {
-        const url = await getVoiceRecordingSignedUrl(vt.audioStoragePath);
+        const url = await getVoiceRecordingUrl(vt.audioStoragePath);
         if (url && !cancelled) {
           setResolved(url);
           return;

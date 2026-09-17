@@ -33,8 +33,6 @@ import {
   createTestPhotoMetadata,
 } from "@/lib/test-factory";
 import {
-  EPHEMERAL_CONTEXT_FIELDS,
-  EPHEMERAL_VOICE_FIELDS,
   EXPORT_STRIPPED_CONTEXT_FIELDS,
   EXPORT_STRIPPED_VOICE_FIELDS,
 } from "@/lib/export-contract";
@@ -143,88 +141,6 @@ describe("Schema completeness", () => {
     const shape = ContextItemSchema.shape;
     expect(shape.linkedProjectId).toBeDefined();
     expect(shape.linkedProjectSlug).toBeDefined();
-  });
-});
-
-// ── Reverse check: schema → DB mapping ─────────────────────────────────────
-
-describe("Schema → DB mapping coverage", () => {
-  /**
-   * Fields that exist in Zod schemas but are ephemeral (not persisted to DB).
-   * The export contract's ephemeral sets plus `src`, which IS exported
-   * (data URLs / external refs) but never written to the DB.
-   */
-  const DB_EPHEMERAL_CONTEXT_FIELDS = new Set([
-    ...EPHEMERAL_CONTEXT_FIELDS,
-    "src",
-  ]);
-
-  it("all BackStorySchema fields are mapped in buildMetadataFromNormalized", () => {
-    const schemaKeys = Object.keys(BackStorySchema.shape);
-    const mapped = ["text", "author", "publication", "publicationUrl", "date"];
-    for (const key of schemaKeys) {
-      expect(mapped, `BackStorySchema.${key} missing from DB mapping`).toContain(key);
-    }
-  });
-
-  it("all CreativeCommonsSchema fields are mapped in buildMetadataFromNormalized", () => {
-    const schemaKeys = Object.keys(CreativeCommonsSchema.shape);
-    const mapped = ["copyright", "description"];
-    for (const key of schemaKeys) {
-      expect(mapped, `CreativeCommonsSchema.${key} missing from DB mapping`).toContain(key);
-    }
-  });
-
-  it("all CodeOfEthicsSchema fields are mapped in buildMetadataFromNormalized", () => {
-    const schemaKeys = Object.keys(CodeOfEthicsSchema.shape);
-    const mapped = [
-      "customEthicsText", "noManipulation", "manipulationDetails",
-      "noStaging", "stagingDetails", "informedConsent", "consentDetails",
-      "identityProtected", "identityProtectionDetails", "consentDocumentUrl",
-      "aiAltered", "aiAlteredDetails",
-    ];
-    for (const key of schemaKeys) {
-      expect(mapped, `CodeOfEthicsSchema.${key} missing from DB mapping`).toContain(key);
-    }
-  });
-
-  it("all PhotographerInfoSchema fields are mapped in buildMetadataFromNormalized", () => {
-    const schemaKeys = Object.keys(PhotographerInfoSchema.shape);
-    const mapped = ["bio", "contact", "website", "collaborators"];
-    for (const key of schemaKeys) {
-      expect(mapped, `PhotographerInfoSchema.${key} missing from DB mapping`).toContain(key);
-    }
-  });
-
-  it("all persisted ContextItemSchema fields are mapped in DB read/write", () => {
-    const schemaKeys = Object.keys(ContextItemSchema.shape);
-    const ephemeral = DB_EPHEMERAL_CONTEXT_FIELDS;
-    const mapped = new Set([
-      "id", "sourceType", "filename", "mimeType", "caption", "type",
-      "url", "storage_path", "storage_url", "thumbnail_storage_path",
-      "thumbnail_storage_url", "description", "credit", "date",
-      "audioStoragePath", "audioStorageUrl", "audioMimeType", "audioDuration",
-      "linkedProjectId", "linkedProjectSlug",
-    ]);
-
-    for (const key of schemaKeys) {
-      if (ephemeral.has(key)) continue;
-      expect(mapped.has(key), `ContextItemSchema.${key} is not ephemeral and not in DB mapping — add to context-items.ts or mark as ephemeral`).toBe(true);
-    }
-  });
-
-  it("all VoiceTranscriptionSchema fields are mapped or ephemeral", () => {
-    const schemaKeys = Object.keys(VoiceTranscriptionSchema.shape);
-    const ephemeral = EPHEMERAL_VOICE_FIELDS;
-    const mapped = new Set([
-      "id", "recordingId", "text", "transcribedAt", "fieldId",
-      "audioStoragePath", "audioStorageUrl", "mimeType", "duration",
-    ]);
-
-    for (const key of schemaKeys) {
-      if (ephemeral.has(key)) continue;
-      expect(mapped.has(key), `VoiceTranscriptionSchema.${key} not in DB mapping`).toBe(true);
-    }
   });
 });
 

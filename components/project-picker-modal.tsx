@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { listUserProjects, type ProjectRecord } from "@/lib/db/projects";
+import { listUserProjects } from "@/lib/api-client/project-actions";
+import type { ProjectRecord } from "@/lib/projects/types";
 import Modal from "@/components/modal";
 
 interface ProjectPickerModalProps {
@@ -18,7 +18,6 @@ export function ProjectPickerModal({
   onSelect,
   onCreateNew,
 }: ProjectPickerModalProps) {
-  const supabase = createClient();
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -36,22 +35,7 @@ export function ProjectPickerModal({
     setError("");
 
     try {
-      if (!supabase) {
-        setError("Supabase is not configured");
-        return;
-      }
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        // Close modal if no user - auth should be handled before opening this modal
-        onClose();
-        return;
-      }
-
-      const userProjects = await listUserProjects(user.id);
+      const userProjects = await listUserProjects();
       setProjects(userProjects);
 
       // Calculate storage used (rough estimate based on project count)

@@ -20,7 +20,19 @@
  */
 
 import { z } from "zod";
-import { FourCornersMetadataExtendedSchema } from "./field-registry";
+import {
+  BackStorySchema,
+  CodeOfEthicsSchema,
+  ContextItemSchema,
+  CreativeCommonsSchema,
+  FourCornersMetadataExtendedSchema,
+  LinkSchema,
+  LocationDataSchema,
+  MetaSchema,
+  PhotoMetadataSchema,
+  PhotographerInfoSchema,
+  VoiceTranscriptionSchema,
+} from "./field-registry";
 import type {
   ContextItem,
   VoiceTranscription,
@@ -124,8 +136,24 @@ export function omitEphemeral<T extends object>(
 // raw JSON BEFORE Zod strip-parsing deletes unknown keys. All paths are
 // ZIP-relative.
 
+/**
+ * Who made the file. Carried in the metadata, never rendered: it tells a
+ * reader which system wrote the bundle and which format version to expect.
+ */
+export const ExportGeneratorSchema = z
+  .object({
+    name: z.string(),
+    designAndBuild: z.string(),
+    url: z.string(),
+    formatVersion: z.string(),
+  })
+  .passthrough();
+
+export type ExportGenerator = z.infer<typeof ExportGeneratorSchema>;
+
 export const ExportManifestSchema = z.object({
   version: z.string(),
+  generator: ExportGeneratorSchema.optional(),
   assets: z.object({
     mainImage: z
       .object({
@@ -168,6 +196,51 @@ export const ExportManifestSchema = z.object({
 });
 
 export type ExportManifest = z.infer<typeof ExportManifestSchema>;
+
+// ── Export envelope ─────────────────────────────────────────────────────────
+// The shape of metadata.json: the four corners at the root (the layout
+// fourcorners.js reads) and everything this editor adds under `_ext`.
+
+const ExportContextItemSchema = ContextItemSchema.omit({
+  blobId: true,
+  thumbnailDataUrl: true,
+  storage_path: true,
+  thumbnail_storage_path: true,
+  audioStoragePath: true,
+});
+
+const ExportVoiceSchema = VoiceTranscriptionSchema.omit({
+  audioBlobId: true,
+  audioStoragePath: true,
+});
+
+const ExportConsentDocumentSchema = z.object({
+  name: z.string(),
+  type: z.string().optional(),
+  size: z.number().optional(),
+  uploadedAt: z.string().optional(),
+  dataUrl: z.string().optional(),
+});
+
+export const ExportEnvelopeSchema = z.object({
+  backStory: BackStorySchema,
+  context: z.array(ExportContextItemSchema),
+  links: z.array(LinkSchema),
+  creativeCommons: CreativeCommonsSchema,
+  _ext: z.object({
+    ethics: CodeOfEthicsSchema.optional(),
+    photographerInfo: PhotographerInfoSchema.optional(),
+    location: LocationDataSchema.optional(),
+    photoMetadata: PhotoMetadataSchema.optional(),
+    voiceTranscriptions: z.array(ExportVoiceSchema).optional(),
+    meta: MetaSchema.optional(),
+    mainImage: z.string().optional(),
+    consentDocuments: z.array(ExportConsentDocumentSchema).optional(),
+    export: ExportManifestSchema,
+  }),
+});
+
+export type ExportEnvelope = z.infer<typeof ExportEnvelopeSchema>;
 
 // ── Version handling ────────────────────────────────────────────────────────
 

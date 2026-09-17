@@ -6,22 +6,24 @@ import {
   extractPhotoMetadata,
   type ExtractedMetadata,
 } from "@/utils/extractPhotoMetadata";
-import { reverseGeocode, type GeocodedLocation } from "@/utils/reverseGeocode";
+import { reverseGeocode } from "@/lib/api-client/geocode";
+import type { GeocodedLocation } from "@/lib/ports/geocoder";
 import { maybeConvertHeic, isHeicFile } from "@/lib/heic-to-jpeg";
 import { InteractiveImagePreview } from "./interactive-image-preview";
 import { AssetLibraryModal } from "./asset-library-modal";
 import type { UserAsset } from "@/lib/field-registry";
 import { Library, Upload } from "lucide-react";
 import { validateUpload, MAX_UPLOAD_BYTES, formatBytes } from "@/lib/upload-limits";
-import { checkQuotaForUpload } from "@/lib/db/user-storage";
+import { checkQuotaForUpload } from "@/lib/api-client/quota";
+import { useAccess } from "@/components/access-provider";
 import { notifyFile } from "@/lib/notify";
-import { createClient } from "@/lib/supabase/client";
 
 interface ImageDropZoneProps {
   onCornerClick?: (sectionId: string) => void;
 }
 
 export function ImageDropZone({ onCornerClick }: ImageDropZoneProps = {}) {
+  const { user } = useAccess();
   const {
     imageSrc,
     setImageSrc,
@@ -168,16 +170,16 @@ export function ImageDropZone({ onCornerClick }: ImageDropZoneProps = {}) {
     setGeocodeStatus("loading");
     const geocoded = await reverseGeocode(lat, lon);
     setGeocodedLocation(geocoded);
-    setGeocodeStatus(geocoded.formattedLocation ? "complete" : "failed");
+    setGeocodeStatus(geocoded?.formattedLocation ? "complete" : "failed");
 
     // Save to store
     updateLocation({
       latitude: lat,
       longitude: lon,
-      city: geocoded.city,
-      state: geocoded.state,
-      country: geocoded.country,
-      formattedLocation: geocoded.formattedLocation,
+      city: geocoded?.city ?? "",
+      state: geocoded?.state ?? "",
+      country: geocoded?.country ?? "",
+      formattedLocation: geocoded?.formattedLocation ?? "",
       capturedAt: new Date().toISOString(),
       source: "exif",
     });
@@ -209,15 +211,11 @@ export function ImageDropZone({ onCornerClick }: ImageDropZoneProps = {}) {
     }
 
     // Pre-flight quota check (skipped when signed out — save flow will no-op).
-    const supabase = createClient();
-    if (supabase) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const quota = await checkQuotaForUpload(user.id, file.size);
-        if (!quota.ok) {
-          notifyFile.quotaExceeded(quota.used, quota.limit, quota.plan);
-          return;
-        }
+    if (user) {
+      const quota = await checkQuotaForUpload(file.size);
+      if (!quota.ok) {
+        notifyFile.quotaExceeded(quota.used, quota.limit, quota.plan);
+        return;
       }
     }
 
@@ -237,7 +235,7 @@ export function ImageDropZone({ onCornerClick }: ImageDropZoneProps = {}) {
     setFreshExtractedMetadata(exifData);
 
     // Convert HEIC/HEIF → JPEG so the data URL we set as imageSrc (and later
-    // upload to Supabase) is renderable in every browser. No-op for non-HEIC.
+    // upload) is renderable in every browser. No-op for non-HEIC.
     const displayFile = await maybeConvertHeic(file);
 
     // Display image

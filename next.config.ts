@@ -2,11 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Don't emit AGENTS.md / CLAUDE.md into the repo.
+  agentRules: false,
   // Konva's Node.js entry requires the native 'canvas' npm package for SSR.
   // We only use Konva client-side, so stub it out during SSR bundling.
   serverExternalPackages: ["canvas"],
-  // Turbopack doesn't resolve subpath exports from git-installed packages;
-  // transpiling forces it through the standard exports map.
+  // The canvas library is vendored as TypeScript source in packages/canvas;
+  // transpiling compiles it with the app instead of shipping a build step.
   transpilePackages: ["@fourcorners/canvas"],
   turbopack: {
     root: __dirname,
@@ -30,6 +32,11 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: [
+          // Who designed and built this system.
+          {
+            key: "X-Designed-By",
+            value: "TheTechMargin",
+          },
           // Prevent clickjacking
           {
             key: "X-Frame-Options",

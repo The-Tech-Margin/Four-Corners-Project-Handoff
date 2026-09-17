@@ -1,7 +1,7 @@
 # Four Corners Design System
 
-Single source of truth for the visual language of the Writing with Light app
-and the `@fourcorners/canvas` library. All values trace back to
+Single source of truth for the visual language of the Four Corners app and
+the vendored `@fourcorners/canvas` library (`packages/canvas`). All values trace back to
 `app/globals.css`. Persona palettes override the same `--fc-*` variables at
 runtime via `html[data-persona="…"]`.
 
@@ -224,8 +224,8 @@ override. If it doesn't need theme-awareness, the static value is fine.
 
 ## @fourcorners/canvas Library
 
-The `@fourcorners/canvas` package is a Konva.js canvas library consumed by
-this app as a dependency. It has its own token system (`ThemeTokens`) that
+The `@fourcorners/canvas` package is a Konva.js canvas library, vendored as
+source in `packages/canvas` and compiled with the app. It has its own token system (`ThemeTokens`) that
 bridges to the app's `--fc-*` variables.
 
 ### Two-layer variable architecture
@@ -309,8 +309,9 @@ variable bridging needed.
 
 ## Persona Palettes
 
-Stored in `persona_palettes` Supabase table with `dark_overrides` and
-`light_overrides` JSON. Applied via `PersonaProvider` → `html[data-persona]`.
+Defined in `lib/palette-presets.ts`, each with a dark and a light set of
+overrides. Applied by `PersonaProvider`, chosen with `?persona=<preset id>`
+or from the theme picker, and remembered per browser.
 Can override any `--fc-*` variable. Commonly: accent, corner colors, surfaces.
 Admin CRUD at `/admin` (password-gated).
 

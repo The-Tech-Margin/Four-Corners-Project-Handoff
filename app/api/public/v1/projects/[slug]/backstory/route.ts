@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getPublicProjectBySlug } from "@/lib/db/public-projects";
+import { getPublicProjectBySlug } from "@/lib/server/public-projects";
 import { apiError } from "@/lib/api-error";
 import { publicJson, publicNotFound, publicOptions } from "@/lib/api-public-headers";
 

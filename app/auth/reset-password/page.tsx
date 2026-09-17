@@ -1,145 +1,114 @@
+/**
+ * /auth/reset-password?token=… — set a new password from a reset link.
+ *
+ * @author TheTechMargin
+ * @copyright 2026 TheTechMargin
+ */
+
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAccess } from "@/components/access-provider";
+import { FourCornersLogo } from "@/components/four-corners-logo";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
-  const supabase = createClient();
+  const token = useSearchParams().get("token") ?? "";
+  const { resetPassword } = useAccess();
+
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    // Check if we have a valid session from the email link
-    const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        setError(
-          "Invalid or expired reset link. Please request a new password reset."
-        );
-      }
-    };
-    checkSession();
-  }, [supabase]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError("");
-    setMessage("");
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
+    if (password !== confirmation) {
+      setError("Those passwords do not match.");
       return;
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+    setSaving(true);
+    const result = await resetPassword(token, password);
+    setSaving(false);
+
+    if (!result.ok) {
+      setError(result.error ?? "Could not set that password.");
       return;
     }
-
-    setLoading(true);
-
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password,
-        data: { has_password: true },
-      });
-
-      if (error) throw error;
-
-      setMessage("Password updated successfully! Redirecting to home...");
-      setTimeout(() => {
-        router.push("/");
-      }, 2000);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to update password");
-    } finally {
-      setLoading(false);
-    }
+    router.push("/");
   };
 
   return (
-    <div className="min-h-screen bg-bg flex items-center justify-center p-4">
-      <div className="bg-surface rounded-xl sm:rounded-2xl w-full max-w-md border border-border overflow-hidden">
-        <div className="px-4 sm:px-5 py-4 border-b border-border">
-          <h1 className="text-lg font-medium text-gray-200">Reset Password</h1>
+    <main className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="flex justify-center mb-6">
+          <FourCornersLogo className="w-16 h-16" />
         </div>
+        <h1 className="text-lg font-medium text-center mb-4">Set a new password</h1>
 
-        <div className="px-4 sm:px-5 py-4">
-          <p className="text-gray-400 text-sm mb-4">
-            Enter your new password below.
+        {!token ? (
+          <p className="text-sm text-center" style={{ color: "var(--fc-text-muted)" }}>
+            This link is missing its token. Request a new reset link from the sign-in dialog.
           </p>
-
-          {error && (
-            <div className="mb-4 text-sm p-2 rounded bg-red-500/20 text-red-400">
-              {error}
-            </div>
-          )}
-
-          {message && (
-            <div className="mb-4 text-sm p-2 rounded bg-green-500/20 text-green-400">
-              {message}
-            </div>
-          )}
-
+        ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                New Password
+              <label className="block text-sm font-medium mb-1" htmlFor="new-password">
+                New password
               </label>
               <input
+                id="new-password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
                 required
                 minLength={8}
-                disabled={!!error || !!message}
-                className="w-full px-3 py-2 bg-surface-alt border border-border rounded text-gray-100 focus:outline-none focus:border-corner-backstory disabled:opacity-50"
-                placeholder="Enter new password"
+                autoComplete="new-password"
+                className="modal-input w-full px-3 py-2 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="confirm-password">
+                Confirm password
+              </label>
+              <input
+                id="confirm-password"
+                type="password"
+                value={confirmation}
+                onChange={(event) => setConfirmation(event.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                className="modal-input w-full px-3 py-2 border rounded"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Confirm Password
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={8}
-                disabled={!!error || !!message}
-                className="w-full px-3 py-2 bg-surface-alt border border-border rounded text-gray-100 focus:outline-none focus:border-corner-backstory disabled:opacity-50"
-                placeholder="Confirm new password"
-              />
-            </div>
+            {error && (
+              <p className="text-sm p-2 rounded bg-red-500/20 text-red-400">{error}</p>
+            )}
 
             <button
               type="submit"
-              disabled={loading || !!error || !!message}
-              className="w-full px-4 py-2 bg-corner-backstory text-gray-900 font-medium rounded hover:bg-corner-backstory/80 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={saving}
+              className="modal-button-primary w-full px-4 py-2 font-medium rounded disabled:opacity-50"
             >
-              {loading ? "Updating..." : "Update Password"}
+              {saving ? "Saving…" : "Set password"}
             </button>
           </form>
-
-          <div className="mt-4 text-center">
-            <button
-              onClick={() => router.push("/")}
-              className="text-sm text-corner-backstory hover:underline"
-            >
-              Back to Home
-            </button>
-          </div>
-        </div>
+        )}
       </div>
-    </div>
+    </main>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

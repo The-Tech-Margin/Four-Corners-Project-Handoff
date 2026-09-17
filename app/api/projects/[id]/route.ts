@@ -1,163 +1,112 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getProject, updateProject, deleteProject } from "@/lib/db/projects";
-import { apiError } from "@/lib/api-error";
-import {
-  syncContextItems,
-} from "@/lib/db/context-items";
-import { deleteAllLinks, createLink } from "@/lib/db/links";
-import { upsertBackstory } from "@/lib/db/backstory";
-import { upsertCreativeCommons } from "@/lib/db/creative-commons";
-import { upsertPhotographerInfo } from "@/lib/db/photographer-info";
-import { upsertEthics } from "@/lib/db/ethics";
-import { upsertLocation } from "@/lib/db/locations";
-import { upsertPhotoMetadata } from "@/lib/db/photo-metadata";
-import { deleteAllVoiceTranscriptions, createVoiceTranscription } from "@/lib/db/voice-transcriptions";
-import { reconstructMetadata } from "@/lib/db/reconstruct-metadata";
-import type { FourCornersMetadataExtended } from "@/lib/schema";
-
 /**
- * GET /api/projects/:id - Get project by ID
- * Reads from normalized tables via reconstructMetadata()
+ * GET    /api/projects/[id] — one project, by id or slug.
+ * PUT    /api/projects/[id] — save the whole metadata document.
+ * PATCH  /api/projects/[id] — rename, re-slug or re-tag.
+ * DELETE /api/projects/[id]
+ *
+ * @author TheTechMargin
+ * @copyright 2026 TheTechMargin
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+
+import type { NextRequest } from "next/server";
+import { ProjectPatchSchema, ProjectSaveSchema } from "@/lib/api-contract/projects";
+import type { MainImageRef } from "@/lib/projects/types";
+import type { FourCornersMetadataExtended } from "@/lib/schema";
+import {
+  assertSameOrigin,
+  errorResponse,
+  handleRouteError,
+  json,
+  unauthorized,
+} from "@/lib/server/http";
+import {
+  deleteProject,
+  getForViewer,
+  patchProject,
+  saveProject,
+} from "@/lib/server/project-service";
+import { getServerUser } from "@/lib/server/session";
+
+export const dynamic = "force-dynamic";
+
+type Params = { params: Promise<{ id: string }> };
+
+export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const supabase = await createClient();
     const { id } = await params;
+    const viewer = await getServerUser();
+    const project = await getForViewer(id, viewer);
+    if (!project) return errorResponse("Project not found", 404);
 
-    const projectRecord = await getProject(id);
-
-    // Check if user has access (owner or published)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (
-      !projectRecord.published &&
-      (!user || user.id !== projectRecord.user_id)
-    ) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
-
-    // Reconstruct metadata from normalized tables
-    const metadata = await reconstructMetadata(id, supabase);
-
-    return NextResponse.json({
-      project: projectRecord,
-      metadata,
+    return json({
+      project,
+      viewer: {
+        isOwner: project.user_id === viewer?.id,
+        isAuthenticated: !!viewer,
+      },
     });
   } catch (error) {
-    return apiError(error, "Failed to fetch project");
+    return handleRouteError(error, "Failed to load the project");
   }
 }
 
-/**
- * PUT /api/projects/:id - Update project
- * Dual-writes: blob + all normalized tables
- */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: Params) {
+  const blocked = assertSameOrigin(request);
+  if (blocked) return blocked;
+
   try {
-    const supabase = await createClient();
+    const user = await getServerUser();
+    if (!user) return unauthorized();
+
     const { id } = await params;
+    const parsed = ProjectSaveSchema.safeParse(await request.json());
+    if (!parsed.success) return errorResponse("Invalid project payload", 400);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { project, warnings } = await saveProject(user, id, {
+      metadata: parsed.data.metadata as FourCornersMetadataExtended,
+      mainImage: parsed.data.mainImage as MainImageRef | undefined,
+      slug: parsed.data.slug,
+      title: parsed.data.title,
+      tags: parsed.data.tags,
+    });
 
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { metadata } = body as { metadata: FourCornersMetadataExtended };
-
-    if (!metadata || typeof metadata !== "object") {
-      return NextResponse.json({ error: "Invalid metadata" }, { status: 400 });
-    }
-
-    if (metadata.context && metadata.context.length > 50) {
-      return NextResponse.json(
-        { error: "Maximum 50 context items allowed" },
-        { status: 400 }
-      );
-    }
-
-    if (metadata.links && metadata.links.length > 100) {
-      return NextResponse.json(
-        { error: "Maximum 100 links allowed" },
-        { status: 400 }
-      );
-    }
-
-    // Update project row (no JSONB blob — normalized tables are the source of truth)
-    const project = await updateProject(id, metadata, user.id, undefined, undefined);
-
-    // Upsert all normalized tables
-    await Promise.all([
-      upsertBackstory(id, metadata.backStory, supabase),
-      upsertCreativeCommons(id, metadata.creativeCommons, supabase),
-      upsertPhotographerInfo(id, metadata.photographerInfo, supabase),
-      upsertEthics(id, metadata.ethics, supabase),
-      upsertLocation(id, metadata.location, supabase),
-      upsertPhotoMetadata(id, metadata.photoMetadata, supabase),
-    ]);
-
-    // Sync context items (upsert pattern preserves CASCADE children)
-    await syncContextItems(id, metadata.context || [], supabase);
-
-    // Replace links
-    await deleteAllLinks(id, supabase);
-    if (metadata.links && metadata.links.length > 0) {
-      for (let i = 0; i < metadata.links.length; i++) {
-        await createLink(id, metadata.links[i], i, supabase);
-      }
-    }
-
-    // Replace voice transcriptions
-    await deleteAllVoiceTranscriptions(id, supabase);
-    if (metadata.voiceTranscriptions && metadata.voiceTranscriptions.length > 0) {
-      for (let i = 0; i < metadata.voiceTranscriptions.length; i++) {
-        await createVoiceTranscription(id, metadata.voiceTranscriptions[i], i, supabase);
-      }
-    }
-
-    return NextResponse.json({ project });
+    return json({ project, warnings });
   } catch (error) {
-    return apiError(error, "Failed to update project");
+    return handleRouteError(error, "Failed to save the project");
   }
 }
 
-/**
- * DELETE /api/projects/:id - Delete project
- */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: Params) {
+  const blocked = assertSameOrigin(request);
+  if (blocked) return blocked;
+
   try {
-    const supabase = await createClient();
+    const user = await getServerUser();
+    if (!user) return unauthorized();
+
     const { id } = await params;
+    const parsed = ProjectPatchSchema.safeParse(await request.json());
+    if (!parsed.success) return errorResponse("Invalid project update", 400);
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    await deleteProject(id, user.id);
-
-    return NextResponse.json({ success: true });
+    return json({ project: await patchProject(user, id, parsed.data) });
   } catch (error) {
-    return apiError(error, "Failed to delete project");
+    return handleRouteError(error, "Failed to update the project");
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: Params) {
+  const blocked = assertSameOrigin(request);
+  if (blocked) return blocked;
+
+  try {
+    const user = await getServerUser();
+    if (!user) return unauthorized();
+
+    const { id } = await params;
+    const removed = await deleteProject(user, id);
+    if (!removed) return errorResponse("Project not found", 404);
+    return json({ ok: true });
+  } catch (error) {
+    return handleRouteError(error, "Failed to delete the project");
   }
 }

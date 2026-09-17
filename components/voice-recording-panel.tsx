@@ -5,8 +5,8 @@ import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
 import { useAIGateway } from "@/hooks/use-ai-gateway";
 import { useFourCornersStore } from "@/lib/store";
 import { notify } from "@/lib/notify";
-import { getVoiceRecordingSignedUrl } from "@/lib/supabase-voice-storage";
-import { getTranscriptionTextByAudioPath } from "@/lib/db/voice-transcriptions";
+import { getVoiceRecordingUrl } from "@/lib/api-client/voice";
+import { findTranscriptByAudioKey } from "@/lib/api-client/transcripts";
 import { mediaStorage } from "@/lib/media-storage";
 import { useEagerAudioUpload } from "@/hooks/use-eager-audio-upload";
 import { AudioFileUpload } from "./audio-file-upload";
@@ -15,7 +15,7 @@ import { TranscribeModal, type TranscribeModalClip } from "./transcribe-modal";
 
 /**
  * Convert an audio data URL to a Blob for IDB persistence.
- * Mirrors dataUrlToBlob in lib/supabase-voice-storage.ts but kept local so
+ * Mirrors dataUrlToBlob in lib/api-client/media-upload.ts but kept local so
  * this module doesn't reach across server/client boundaries.
  */
 function audioDataUrlToBlob(dataUrl: string): Blob | null {
@@ -129,7 +129,7 @@ export function VoiceRecordingPanel({
 
       for (const transcription of transcriptionsNeedingUrls) {
         if (transcription.audioStoragePath) {
-          const url = await getVoiceRecordingSignedUrl(transcription.audioStoragePath);
+          const url = await getVoiceRecordingUrl(transcription.audioStoragePath);
           if (url) {
             newUrls[transcription.id] = url;
             // Update transcription with the new URL
@@ -341,7 +341,7 @@ export function VoiceRecordingPanel({
       }
       if (vt.audioStoragePath) {
         try {
-          const existing = await getTranscriptionTextByAudioPath(vt.audioStoragePath);
+          const existing = await findTranscriptByAudioKey(vt.audioStoragePath);
           if (existing) {
             setVoiceTranscriptions(
               useFourCornersStore

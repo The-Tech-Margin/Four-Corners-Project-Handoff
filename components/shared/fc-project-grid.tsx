@@ -4,7 +4,7 @@ import { type ReactNode, useRef } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Masonry from "react-masonry-css";
-import type { ProjectRecord } from "@/lib/db/projects";
+import type { ProjectRecord } from "@/lib/projects/types";
 import { FCProjectCard, type FCProjectCardProps } from "./fc-project-card";
 
 export interface FCProjectGridProps {

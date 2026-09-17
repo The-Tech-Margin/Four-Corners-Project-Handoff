@@ -3,13 +3,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useFourCornersStore } from "@/lib/store";
-import { createClient } from "@/lib/supabase/client";
 import { useAccess } from "./access-provider";
 import {
   togglePublish,
   toggleGallery,
   GALLERY_LIMIT_REACHED,
-} from "@/lib/db/projects";
+} from "@/lib/api-client/project-actions";
 import { useProjectMetadata } from "@/hooks/useProjectMetadata";
 import { useProjectSave } from "@/hooks/useProjectSave";
 import { AuthModal } from "./auth-modal";
@@ -21,7 +20,7 @@ import { ModeSelector } from "./mode-selector";
 import { ShareModal } from "./share-modal";
 import { ThemeToggle } from "./theme-toggle";
 import { StorageUsageBadge } from "./storage-usage-badge";
-import type { ProjectRecord } from "@/lib/db/projects";
+import type { ProjectRecord } from "@/lib/projects/types";
 import {
   notify,
   notifyPublish,
@@ -32,10 +31,6 @@ import {
 import { encodeProjectId } from "@/lib/encode-id";
 import { Grid2X2, Palette } from "lucide-react";
 import { PalettePickerModal } from "./palette-picker-modal";
-import {
-  shouldShowThemePrompt,
-  recordThemePromptDismissal,
-} from "@/lib/theme-prompt";
 
 function slugify(text: string): string {
   return text
@@ -84,7 +79,6 @@ export function ProjectMenu({
   viewActions,
 }: ProjectMenuProps) {
   const router = useRouter();
-  const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [_authContext, setAuthContext] = useState<"newProject" | "load">(
@@ -93,15 +87,12 @@ export function ProjectMenu({
   const [showSlugInput, setShowSlugInput] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [titleInput, setTitleInput] = useState("");
-  // Auth + admin state come from the single app-wide AccessProvider — no
-  // per-component subscription or module cache. The provider keeps prior state
-  // on 429/5xx, so the Admin item never flickers out on a rate-limited check.
-  const { user, authLoading, isAdmin, pendingInvites, refreshAccess } =
-    useAccess();
+  // Auth state comes from the single app-wide AccessProvider — no
+  // per-component subscription.
+  const { user, authLoading, signOut } = useAccess();
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareAfterSave, setShareAfterSave] = useState(false);
   const [showPaletteModal, setShowPaletteModal] = useState(false);
-  const [themePromptActive, setThemePromptActive] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -113,44 +104,14 @@ export function ProjectMenu({
   const { buildMetadata } = useProjectMetadata();
   const { saving, saveStatus, save, createNew, checkAuth } = useProjectSave();
 
-  // Refresh the admin signal each time the menu opens so the pending-invite
-  // dot reflects the current count rather than the count at mount. Auth +
-  // admin tracking itself lives in the AccessProvider.
-  useEffect(() => {
-    if (!isOpen || !user?.id) return;
-    refreshAccess();
-  }, [isOpen, user?.id, refreshAccess]);
-
   // Open the palette modal when the help launcher requests it.
   useEffect(() => {
     const onOpenPalette = () => {
       setShowPaletteModal(true);
-      setThemePromptActive(false);
     };
     window.addEventListener("fc:open-palette", onOpenPalette);
     return () => window.removeEventListener("fc:open-palette", onOpenPalette);
   }, []);
-
-  // Show palette prompt for logged-in users with no preference (up to 3 times)
-  useEffect(() => {
-    if (!user) return;
-
-    function handleNoPalette() {
-      if (shouldShowThemePrompt()) {
-        setShowPaletteModal(true);
-        setThemePromptActive(true);
-      }
-    }
-
-    // Check flag in case PersonaProvider dispatched before this listener registered
-    if ((window as unknown as Record<string, unknown>).__fcNoPalettePreference) {
-      handleNoPalette();
-      delete (window as unknown as Record<string, unknown>).__fcNoPalettePreference;
-    }
-
-    window.addEventListener("fc:no-palette-preference", handleNoPalette);
-    return () => window.removeEventListener("fc:no-palette-preference", handleNoPalette);
-  }, [user]);
 
   // Dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -189,24 +150,7 @@ export function ProjectMenu({
         return;
       }
 
-      // Check if user is authenticated
-      if (!supabase) {
-        return;
-      }
-
-      let isAuthenticated = false;
-      try {
-        const { data: { user: u } } = await supabase.auth.getUser();
-        isAuthenticated = !!u;
-      } catch {
-        // getUser() network failure — fallback to cached session
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          isAuthenticated = !!session?.user;
-        } catch { /* ignore */ }
-      }
-
-      if (!isAuthenticated) {
+      if (!user) {
         // Not authenticated - directly show auth modal
         setAuthContext("newProject");
         setShowAuth(true);
@@ -594,9 +538,7 @@ export function ProjectMenu({
   };
 
   const handleLogout = async () => {
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    // The AccessProvider clears the user on SIGNED_OUT.
+    await signOut();
     setIsOpen(false);
     // Reset project state on logout
     reset();
@@ -1193,119 +1135,18 @@ export function ProjectMenu({
               Help
             </button>
 
-            {/* API Docs — external published API reference (signed-in users
-                only). URL is configurable per environment via the Vercel env
-                var NEXT_PUBLIC_API_DOCS_URL (inlined at build time); falls back
-                to the published Postman API docs (safe default for cutover). */}
-            {user && (
-              <a
-                href={
-                  process.env.NEXT_PUBLIC_API_DOCS_URL ||
-                  "https://documenter.getpostman.com/view/54883007/2sBXqRiwAo#intro"
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setIsOpen(false)}
-                className="w-full text-left px-5 py-3 text-sm menu-item-text menu-item transition-all flex items-center gap-3 touch-manipulation min-h-[44px]"
-              >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
-              </svg>
-              API Docs
-              <svg
-                className="w-3 h-3 ml-auto opacity-60"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                />
-              </svg>
-              </a>
-            )}
-
             {/* Theme — internal preference (signed-in) */}
             {user && (
               <button
                 onClick={() => {
                   setIsOpen(false);
                   setShowPaletteModal(true);
-                  setThemePromptActive(false);
                 }}
                 className="w-full text-left px-5 py-3 text-sm menu-item-text menu-item transition-all flex items-center gap-3 touch-manipulation min-h-[44px]"
               >
                 <Palette className="w-4 h-4" />
                 Theme
               </button>
-            )}
-
-            {/* Admin — internal tools (admin / super_admin only) */}
-            {isAdmin && (
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  router.push("/admin");
-                }}
-                className="w-full text-left px-5 py-3 text-sm menu-item-text menu-item transition-all flex items-center gap-3 touch-manipulation min-h-[44px]"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Admin
-                {pendingInvites > 0 && (
-                  <span
-                    className="fc-admin-pending-dot ml-auto"
-                    aria-label={`${pendingInvites} pending invite${pendingInvites === 1 ? "" : "s"} to review`}
-                    title={`${pendingInvites} pending invite${pendingInvites === 1 ? "" : "s"} to review`}
-                  />
-                )}
-              </button>
-            )}
-
-            {/* Issue tracking — signed-in users, grouped with the docs/help items */}
-            {user && (
-              <>
-                <button
-                  onClick={() => {
-                    setIsOpen(false);
-                    window.dispatchEvent(new CustomEvent("fc:open-issue-reporter"));
-                  }}
-                  className="w-full text-left px-5 py-3 text-sm menu-item-text menu-item transition-all flex items-center gap-3 touch-manipulation min-h-[44px]"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  </svg>
-                  Report an issue
-                </button>
-                <button
-                  onClick={() => {
-                    setIsOpen(false);
-                    router.push("/tickets");
-                  }}
-                  className="w-full text-left px-5 py-3 text-sm menu-item-text menu-item transition-all flex items-center gap-3 touch-manipulation min-h-[44px]"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                  </svg>
-                  My tickets
-                </button>
-              </>
             )}
 
             <div className="border-t border-border/50 my-2" />
@@ -1392,12 +1233,7 @@ export function ProjectMenu({
 
       <PalettePickerModal
         isOpen={showPaletteModal}
-        onClose={() => {
-          if (themePromptActive) recordThemePromptDismissal();
-          setShowPaletteModal(false);
-          setThemePromptActive(false);
-        }}
-        promptMode={themePromptActive}
+        onClose={() => setShowPaletteModal(false)}
       />
     </>
   );

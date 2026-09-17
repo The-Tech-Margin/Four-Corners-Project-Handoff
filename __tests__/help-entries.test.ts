@@ -16,8 +16,8 @@ const routeOf = (entries: HelpEntry[], id: string) => {
 };
 
 describe("buildHelpEntries", () => {
-  it("logged-out: shows public help + sign-in, hides workspace/admin/creator-only", () => {
-    const entries = buildHelpEntries({ isAuthed: false, isAdmin: false });
+  it("logged-out: shows public help + sign-in, hides workspace/creator-only", () => {
+    const entries = buildHelpEntries({ isAuthed: false });
     const seen = ids(entries);
     expect(seen).toContain("sign-in");
     expect(seen).toContain("gallery");
@@ -26,13 +26,12 @@ describe("buildHelpEntries", () => {
     expect(seen).not.toContain("dashboard");
     expect(seen).not.toContain("help-field-reference");
     expect(seen).not.toContain("theme");
-    expect(seen.some((id) => id.startsWith("admin-"))).toBe(false);
     // public help points at /docs, not the gated creator guide
     expect(routeOf(entries, "help-getting-started")).toBe("/docs#getting-started");
   });
 
   it("authed: adds workspace + creator-anchored help + theme, drops sign-in", () => {
-    const entries = buildHelpEntries({ isAuthed: true, isAdmin: false });
+    const entries = buildHelpEntries({ isAuthed: true });
     const seen = ids(entries);
     expect(seen).toContain("new-project");
     expect(seen).toContain("editor");
@@ -40,19 +39,11 @@ describe("buildHelpEntries", () => {
     expect(seen).toContain("help-field-reference");
     expect(seen).toContain("theme");
     expect(seen).not.toContain("sign-in");
-    expect(seen.some((id) => id.startsWith("admin-"))).toBe(false);
     expect(routeOf(entries, "help-getting-started")).toBe("/docs/creator#getting-started");
   });
 
-  it("admin: adds the Admin category on top of the authed set", () => {
-    const entries = buildHelpEntries({ isAuthed: true, isAdmin: true });
-    expect(ids(entries)).toContain("admin-dashboard");
-    expect(ids(entries)).toContain("admin-guide");
-    expect(entries.filter((e) => e.category === "Admin")).toHaveLength(2);
-  });
-
   it("every entry carries a --fc-corner-* accent token", () => {
-    const entries = buildHelpEntries({ isAuthed: true, isAdmin: true });
+    const entries = buildHelpEntries({ isAuthed: true });
     for (const entry of entries) {
       expect(entry.accentToken.startsWith("--fc-corner-")).toBe(true);
     }
@@ -60,7 +51,7 @@ describe("buildHelpEntries", () => {
 });
 
 describe("filterHelpEntries", () => {
-  const entries = buildHelpEntries({ isAuthed: true, isAdmin: true });
+  const entries = buildHelpEntries({ isAuthed: true });
 
   it("matches across title, subtitle, and keywords", () => {
     expect(filterHelpEntries(entries, "gallery").some((e) => e.id === "gallery")).toBe(true);

@@ -18,7 +18,7 @@
 export type UploadKind = "image" | "video" | "audio" | "document";
 
 /**
- * Video MIME types we accept. The supabase-js client uploads any blob the
+ * Video MIME types we accept. The upload route stores any blob the
  * browser hands us, but the defensive `/api/storage/upload` route + the main
  * image data-URL regex both need an explicit list. Keep this broad — phones
  * and cameras emit a long tail of containers and the user-facing rule is
@@ -208,7 +208,7 @@ export type UserPlan = "free" | "pro" | "team" | "unlimited";
  */
 export const PLAN_QUOTAS: Record<UserPlan, number> = {
   free: 1024 * 1024 * 1024, //     1 GB — doubled from 500 MB after confirming
-  //                                   the project is on Supabase Pro (100 GB
+  //                                   the project is on storage Pro (100 GB
   //                                   included). Worst-case exposure with
   //                                   the current user base is well under
   //                                   included storage; see STORAGE-QUOTA.md.
@@ -233,5 +233,22 @@ export function resolvePlanLimit(plan: string, customLimit: number | null): numb
  * red UI. Exported so the badge component and any admin dashboard use the
  * same cutoffs.
  */
+export interface QuotaEvaluation {
+  used: number;
+  limit: number;
+  ratio: number;
+  fits: boolean;
+}
+
+/** Would `incoming` bytes fit under the limit? Pure, so both sides can ask. */
+export function evaluateQuota(
+  used: number,
+  incoming: number,
+  limit: number,
+): QuotaEvaluation {
+  const ratio = limit > 0 ? Math.min(1, used / limit) : 0;
+  return { used, limit, ratio, fits: incoming <= 0 || used + incoming <= limit };
+}
+
 export const USAGE_WARN_RATIO = 0.8;
 export const USAGE_CRITICAL_RATIO = 0.95;

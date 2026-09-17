@@ -89,7 +89,7 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
       display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out",
       padding: 20,
     }}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- lightbox: external Supabase URLs, fidelity-critical */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- lightbox: stored media, fidelity-critical */}
       <img src={src} alt={alt} style={{ maxWidth: "95vw", maxHeight: "90vh", objectFit: "contain" }} />
       <button onClick={onClose} aria-label="Close" style={{
         position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.15)", border: "none",
@@ -106,7 +106,7 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
 function ZoomableImage({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties }) {
   const [open, setOpen] = useState(false);
   return (<>
-    {/* eslint-disable-next-line @next/next/no-img-element -- external Supabase URLs, fidelity-critical */}
+    {/* eslint-disable-next-line @next/next/no-img-element -- stored media, fidelity-critical */}
     <img src={src} alt={alt} loading="lazy"
       onPointerDown={(e) => { e.stopPropagation(); }}
       onClick={(e) => { e.stopPropagation(); setOpen(true); }}

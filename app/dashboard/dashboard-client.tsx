@@ -8,14 +8,10 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { notify, notifyFile } from "@/lib/notify";
 import Link from "next/link";
-import {
-  deleteProject,
-  togglePublish,
-  type ProjectRecord,
-} from "@/lib/db/projects";
+import { deleteProject, togglePublish } from "@/lib/api-client/project-actions";
+import type { ProjectRecord } from "@/lib/projects/types";
 import { AppHeader } from "@/components/app-header";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import { DownloadModal } from "@/components/dashboard/DownloadModal";
@@ -48,6 +44,7 @@ interface DashboardClientProps {
   projects: ProjectRecord[];
   storageUsed: number;
   storageLimit: number;
+  plan?: string;
   userEmail: string;
 }
 
@@ -55,6 +52,7 @@ export function DashboardClient({
   projects: initialProjects,
   storageUsed,
   storageLimit,
+  plan = "free",
   userEmail,
 }: DashboardClientProps) {
   const router = useRouter();
@@ -248,16 +246,8 @@ export function DashboardClient({
     const loadingId = notify.loading("Deleting...");
 
     try {
-      // getUser() verifies with Auth server — don't trust unverified cookies for destructive ops
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error("Not authenticated");
-      }
-
-      await deleteProject(project.id, user.id);
+      // The route re-checks the session and the owner before deleting.
+      await deleteProject(project.id);
       setProjects(projects.filter((p) => p.id !== project.id));
       notify.dismiss(loadingId);
       notifyFile.deleted(title);
@@ -562,7 +552,7 @@ export function DashboardClient({
                 Storage Usage
               </h3>
               <p className="text-xs text-gray-400">
-                Free plan · {formatBytes(storageUsed)} of{" "}
+                {plan} plan · {formatBytes(storageUsed)} of{" "}
                 {formatBytes(storageLimit)} used
               </p>
             </div>

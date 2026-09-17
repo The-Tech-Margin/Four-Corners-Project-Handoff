@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TEST_STORE_STATE, POPULATED_FIELDS, TEST_DB_ROW } from "./fixtures/test-project";
+import { TEST_STORE_STATE, POPULATED_FIELDS } from "./fixtures/test-project";
 
 // Mock store with test data
 const mockState = { ...TEST_STORE_STATE };
@@ -31,7 +31,7 @@ describe("Form Editor — Field Completeness", () => {
     });
 
     it("has creativeCommons.copyright", () => {
-      expect(mockState.creativeCommons.copyright).toBe("Kabir Dugal");
+      expect(mockState.creativeCommons.copyright).toBe("Test Photographer");
     });
 
     it("has creativeCommons.description", () => {
@@ -43,7 +43,7 @@ describe("Form Editor — Field Completeness", () => {
       for (const item of mockState.context) {
         expect(item.id).toBeTruthy();
         expect(item.type).toBe("image");
-        expect(item.storage_url).toContain("supabase.co");
+        expect(item.storage_url).toMatch(/^\/api\/blobs\//);
         expect(item.thumbnail_storage_url).toContain("thumbs/");
       }
     });
@@ -60,50 +60,6 @@ describe("Form Editor — Field Completeness", () => {
       expect(mockState.ethics.informedConsent).toBe(false);
       expect(mockState.ethics.identityProtected).toBe(false);
       expect(mockState.ethics.aiAltered).toBe(false);
-    });
-  });
-
-  describe("DB row mapping", () => {
-    it("maps backStory to project_backstory columns", () => {
-      const db = TEST_DB_ROW.project_backstory;
-      expect(db.text).toBe(mockState.backStory.text);
-      expect(db.date).toBe(mockState.backStory.date);
-    });
-
-    it("maps creativeCommons to project_creative_commons columns", () => {
-      const db = TEST_DB_ROW.project_creative_commons;
-      expect(db.copyright).toBe(mockState.creativeCommons.copyright);
-      expect(db.description).toBe(mockState.creativeCommons.description);
-    });
-
-    it("maps ethics booleans to project_ethics snake_case columns", () => {
-      const db = TEST_DB_ROW.project_ethics;
-      expect(db.no_manipulation).toBe(mockState.ethics.noManipulation);
-      expect(db.no_staging).toBe(mockState.ethics.noStaging);
-      expect(db.informed_consent).toBe(mockState.ethics.informedConsent);
-      expect(db.identity_protected).toBe(mockState.ethics.identityProtected);
-      expect(db.ai_altered).toBe(mockState.ethics.aiAltered);
-    });
-
-    it("maps context items to context_items table columns", () => {
-      expect(TEST_DB_ROW.context_items.length).toBe(mockState.context.length);
-      for (let i = 0; i < TEST_DB_ROW.context_items.length; i++) {
-        const db = TEST_DB_ROW.context_items[i];
-        const store = mockState.context[i];
-        expect(db.id).toBe(store.id);
-        expect(db.media_type).toBe(store.type);
-        expect(db.source_type).toBe(store.sourceType);
-        expect(db.storage_url).toBe(store.storage_url);
-        expect(db.position).toBe(i);
-      }
-    });
-
-    it("maps voice transcriptions to voice_transcriptions columns", () => {
-      const db = TEST_DB_ROW.voice_transcriptions[0];
-      const store = mockState.voiceTranscriptions[0];
-      expect(db.id).toBe(store.id);
-      expect(db.text).toBe(store.text);
-      expect(db.field_id).toBe(store.fieldId);
     });
   });
 

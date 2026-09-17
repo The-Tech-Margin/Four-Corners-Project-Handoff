@@ -70,7 +70,7 @@ export default function ErrorPage({
                 Under the Lens
               </h1>
               <p className="text-lg text-gray-400 mb-2">
-                We're adjusting the aperture. The app is briefly down for maintenance.
+                We&apos;re adjusting the aperture. The app is briefly down for maintenance.
               </p>
               <p className="text-sm text-gray-500 mb-8">
                 Like a long exposure, good things take a little patience.
@@ -85,7 +85,7 @@ export default function ErrorPage({
                 Something slipped past the viewfinder. An unexpected error occurred.
               </p>
               <p className="text-sm text-gray-500 mb-8">
-                The corners scattered — let's try to recompose the shot.
+                The corners scattered — let&apos;s try to recompose the shot.
               </p>
             </>
           )}
@@ -103,12 +103,16 @@ export default function ErrorPage({
             >
               {isMaintenance ? "Retry" : "Try again"}
             </button>
+            {/* Full page loads, not client navigation: the React tree that
+                threw is still mounted. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- hard reload out of a broken tree */}
             <a
               href="/"
               className="px-6 py-3 bg-surface-alt hover:bg-surface border border-border text-gray-300 rounded-lg transition-colors text-center"
             >
               Go Home
             </a>
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- hard reload out of a broken tree */}
             <a
               href="/gallery"
               className="px-6 py-3 bg-surface-alt hover:bg-surface border border-border text-gray-300 rounded-lg transition-colors text-center"

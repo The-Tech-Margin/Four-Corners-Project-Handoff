@@ -3,10 +3,10 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { createClient } from "@/lib/supabase/client";
-import type { ProjectRecord } from "@/lib/db/projects";
+import type { ProjectRecord } from "@/lib/projects/types";
 import type { FourCornersContextItem, VoiceTranscription } from "@/lib/schema";
-import { NORMALIZED_SELECT, buildMetadataFromNormalized, getAdjacentGalleryItems } from "@/lib/db/projects";
+import * as projectsApi from "@/lib/api-client/projects";
+import { adjacent as fetchAdjacent, type AdjacentItem } from "@/lib/api-client/gallery";
 import { decodeProjectId, encodeProjectId } from "@/lib/encode-id";
 import { sizedImageUrl, DISPLAY_WIDTH, DISPLAY_QUALITY } from "@/lib/image-url";
 import Link from "next/link";
@@ -25,10 +25,8 @@ import {
   downloadIIIFManifest,
 } from "@/lib/metadata-export";
 import { notify } from "@/lib/notify";
-import {
-  refreshVoiceRecordingUrls,
-  getVoiceRecordingSignedUrl,
-} from "@/lib/supabase-voice-storage";
+import { refreshVoiceRecordingUrls } from "@/lib/api-client/voice";
+import { ApiError } from "@/lib/api-client/http";
 import { copyToClipboard } from "@/lib/clipboard";
 import { transformToCanvasDocument } from "@/app/explore/[slug]/components/transform";
 
@@ -61,24 +59,8 @@ export default function ViewProjectPage() {
   const [activeTab, setActiveTab] = useState<TabType>(initTab);
   const [isOwnProject, setIsOwnProject] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  // Global flag — when off, hide Explore mode from non-owner viewers
-  // (toggle lives at /admin/settings). Default false (closed) until we get
-  // a response, so we don't flash the affordance for non-owners.
-  const [exploreEnabled, setExploreEnabled] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/settings/gallery_explore_enabled")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!cancelled) setExploreEnabled(d?.value === true);
-      })
-      .catch(() => {
-        /* fail closed */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Deployment flag — when off, Explore mode is hidden from non-owner viewers.
+  const exploreEnabled = process.env.NEXT_PUBLIC_EXPLORE_ENABLED !== "false";
   const [contextViewMode, setContextViewMode] = useState<"grid" | "list">("grid");
   const [isDesktop, setIsDesktop] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -140,8 +122,8 @@ export default function ViewProjectPage() {
   }, [activeTab, project, refreshedTranscriptions, refreshedContextImages, colorMode]);
   // Adjacent gallery items for swipe navigation
   const [adjacentItems, setAdjacentItems] = useState<{
-    prev: { id: string; slug: string | null; main_image_url: string | null } | null;
-    next: { id: string; slug: string | null; main_image_url: string | null } | null;
+    prev: AdjacentItem | null;
+    next: AdjacentItem | null;
   }>({ prev: null, next: null });
   // Touch tracking for swipe gestures
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
@@ -167,118 +149,44 @@ export default function ViewProjectPage() {
   const loadProject = async () => {
     try {
       const decodedSlug = decodeProjectId(slug);
-      const supabase = createClient();
+      const { project: projectData, viewer } = await projectsApi.get(decodedSlug);
 
-      // Check user authentication
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setIsLoggedIn(!!user);
-
-      // Check if decoded value is a UUID (36 chars with hyphens at specific positions)
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const isUuid = uuidRegex.test(decodedSlug);
-
-      // For logged-in users viewing their own projects, don't require published
-      // For public access, require published = true
-      const buildQuery = (select: string) => {
-        let q = supabase.from("projects").select(select);
-        if (!user) q = q.eq("published", true);
-        return isUuid ? q.eq("id", decodedSlug) : q.eq("slug", decodedSlug);
-      };
-
-      let { data, error } = await buildQuery(NORMALIZED_SELECT);
-      if (error?.message?.includes("main_image_thumbnail_path") || error?.code === "42703") {
-        // Migration 041 fallback — strip the new column and retry.
-        const fallbackSelect = NORMALIZED_SELECT
-          .replace(",main_image_thumbnail_path", "")
-          .replace("main_image_thumbnail_path,", "");
-        ({ data, error } = await buildQuery(fallbackSelect));
-      }
-
-      if (error) {
-        throw new Error("Failed to load project. Please try again later.");
-      }
-
-      if (!data || data.length === 0) {
-        throw new Error("Project not found or has been unpublished");
-      }
-
-      const projectData = buildMetadataFromNormalized(data[0]);
-
-      // Check if user owns this project
-      const ownsProject = user && projectData.user_id === user.id;
-      setIsOwnProject(ownsProject);
-
-      // If not owner and not published, deny access
-      if (!ownsProject && !projectData.published) {
-        throw new Error("This project is private");
-      }
-
+      setIsLoggedIn(viewer.isAuthenticated);
+      setIsOwnProject(viewer.isOwner);
       setProject(projectData);
 
       // Cache for instant render on back/forward navigation
       try {
         sessionStorage.setItem(`fc-view-${slug}`, JSON.stringify(projectData));
-      } catch { /* quota — skip */ }
-
-      // Fetch adjacent gallery items for swipe navigation (non-blocking)
-      if (projectData.in_gallery && projectData.published) {
-        getAdjacentGalleryItems(projectData.id).then(setAdjacentItems);
+      } catch {
+        /* quota — skip */
       }
 
-      // Refresh audio URLs for voice transcriptions
+      // Adjacent gallery items power swipe navigation (non-blocking).
+      if (projectData.in_gallery && projectData.published) {
+        fetchAdjacent(projectData.id)
+          .then(setAdjacentItems)
+          .catch(() => {
+            /* navigation arrows just stay hidden */
+          });
+      }
+
+      // Voice playback URLs are scoped to this project.
       const transcriptions = projectData.metadata?.voiceTranscriptions;
       if (transcriptions && transcriptions.length > 0) {
-        refreshVoiceRecordingUrls(transcriptions).then(setRefreshedTranscriptions);
-      }
-
-      // Resolve missing image/audio URLs for context items
-      const contextItems = projectData.metadata?.context;
-      if (contextItems && contextItems.length > 0) {
-        const needsResolution = contextItems.some(
-          (item: FourCornersContextItem) =>
-            (item.storage_path && !item.storage_url) ||
-            (item.audioStoragePath && !item.audioStorageUrl)
+        refreshVoiceRecordingUrls(transcriptions, { projectId: projectData.id }).then(
+          setRefreshedTranscriptions,
         );
-        if (needsResolution) {
-          const supabaseClient = createClient();
-          Promise.all(
-            contextItems.map(async (item: FourCornersContextItem) => {
-              const patch: Partial<FourCornersContextItem> = {};
-              // Resolve image storage_path → public URL
-              if (item.storage_path && !item.storage_url) {
-                const { data } = supabaseClient.storage
-                  .from("context-media")
-                  .getPublicUrl(item.storage_path);
-                if (data?.publicUrl) {
-                  patch.storage_url = data.publicUrl;
-                  patch.src = data.publicUrl;
-                }
-              }
-              // Resolve thumbnail storage_path → public URL
-              if (item.thumbnail_storage_path && !item.thumbnail_storage_url) {
-                const { data } = supabaseClient.storage
-                  .from("context-media")
-                  .getPublicUrl(item.thumbnail_storage_path);
-                if (data?.publicUrl) {
-                  patch.thumbnail_storage_url = data.publicUrl;
-                  patch.thumbnailDataUrl = data.publicUrl;
-                }
-              }
-              // Resolve audio storage path → signed URL
-              if (item.audioStoragePath && !item.audioStorageUrl) {
-                const url = await getVoiceRecordingSignedUrl(item.audioStoragePath);
-                if (url) patch.audioStorageUrl = url;
-              }
-              return Object.keys(patch).length > 0 ? { ...item, ...patch } : item;
-            })
-          ).then(setRefreshedContextImages);
-        }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      const notFound = err instanceof ApiError && err.status === 404;
+      setError(
+        notFound
+          ? "Project not found or has been unpublished"
+          : err instanceof Error
+            ? err.message
+            : "An unexpected error occurred",
+      );
     } finally {
       setLoading(false);
     }

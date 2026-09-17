@@ -17,7 +17,7 @@ import { Pause, Play } from "lucide-react";
  * original `video/quicktime` MIME for storage.
  *
  * Only rewrites `data:` URLs. Storage URLs (no explicit MIME on the URL
- * itself; Content-Type comes from the response header Supabase sets) are
+ * itself; Content-Type comes from the response header storage sets) are
  * passed through untouched.
  */
 function normalizeVideoSrc(src: string): string {

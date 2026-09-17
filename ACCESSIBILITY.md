@@ -175,10 +175,11 @@ All text meets WCAG AA standards:
 - Some EXIF data may not be available from all image sources
 - The fullscreen image, full-gallery, and link-preview **overlays** close on
   Escape but do not yet trap **Tab** focus or restore focus to the trigger on
-  close. Tracked as a follow-up — see `REGRESSION.md`.
+  close.
 - The gallery's masonry grid does not expose `role="list"` semantics (its
   column-based layout precludes a valid list structure); the list view does.
 
 ## Reporting Issues
 
-If you encounter accessibility barriers, please contact: sonia@thetechmargin.com
+If you encounter an accessibility barrier, open an issue in this repository,
+or contact whoever operates the deployment you are using.

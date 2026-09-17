@@ -8,7 +8,11 @@ import { describe, it, expect } from "vitest";
 import { resolveAssets, type AssetResolutionDeps } from "@/lib/export/assets";
 import { buildExportMetadata, buildExportManifest } from "@/lib/export/serialize";
 import { parseMetadataText } from "@/lib/importMetadata";
-import { ExportManifestSchema } from "@/lib/export-contract";
+import {
+  canonicalizeForComparison,
+  CURRENT_EXPORT_VERSION,
+  ExportManifestSchema,
+} from "@/lib/export-contract";
 import type { ExportOptions, ExportProjectInput } from "@/lib/export/types";
 import type { FourCornersMetadataExtended } from "@/lib/field-registry";
 
@@ -35,7 +39,7 @@ function fixtureMetadata(): FourCornersMetadataExtended {
         mimeType: "image/png",
         src: "data:image/png;base64,cGljLWJ5dGVz",
         storage_url:
-          "https://abc.supabase.co/storage/v1/object/public/context-media/u/pic.png",
+          "https://media.example.org/u/pic.png",
         audioDataUrl: "data:audio/webm;base64,YXVkaW8tYnl0ZXM=",
         audioMimeType: "audio/webm",
         audioDuration: 2,
@@ -208,7 +212,26 @@ describe("toggles and reference flavor", () => {
     const context = (envelope as { context: Array<Record<string, unknown>> }).context;
     const upload = context.find((i) => i.caption === "uploaded")!;
     expect(upload.src).toBe(
-      "https://abc.supabase.co/storage/v1/object/public/context-media/u/pic.png",
+      "https://media.example.org/u/pic.png",
     );
+  });
+});
+
+describe("export manifest attribution", () => {
+  it("records which system wrote the bundle, without touching the content", () => {
+    const manifest = buildExportManifest([]);
+
+    expect(manifest.version).toBe(CURRENT_EXPORT_VERSION);
+    expect(manifest.generator?.designAndBuild).toBe("TheTechMargin");
+    expect(manifest.generator?.formatVersion).toBe(CURRENT_EXPORT_VERSION);
+  });
+
+  it("is ignored when comparing two exports of the same project", () => {
+    const withGenerator = { ...fixtureMetadata() };
+    const canonical = canonicalizeForComparison(withGenerator);
+
+    // The generator lives under _ext.export, which never reaches the
+    // comparison — a round trip is judged on the content alone.
+    expect(JSON.stringify(canonical)).not.toContain("TheTechMargin");
   });
 });

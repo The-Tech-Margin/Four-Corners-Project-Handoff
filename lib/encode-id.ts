@@ -43,21 +43,22 @@ export function decodeProjectId(encodedId: string): string {
     base64 += "=";
   }
 
-  // Guard: only decode well-formed base64. Human-readable slugs (e.g.
-  // `diptych-…-richmond-va`) are not valid base64 and would make `atob` throw —
-  // previously caught, but it surfaced a noisy dev error overlay on every plain-
-  // slug page load. Detecting the format first avoids exception-as-control-flow;
-  // anything that isn't base64 is an opaque id (slug) and is returned untouched.
+  // Guard: only decode well-formed base64. A slug is not base64 and would
+  // make `atob` throw, which used to surface a dev error overlay on every
+  // plain-slug page load.
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) {
     return encodedId;
   }
 
   try {
-    return typeof window !== "undefined"
-      ? atob(base64)
-      : Buffer.from(base64, "base64").toString("utf-8");
+    const decoded =
+      typeof window !== "undefined"
+        ? atob(base64)
+        : Buffer.from(base64, "base64").toString("utf-8");
+    // Only ids are ever encoded, so a decode that isn't one means the input
+    // was a slug that happens to look like base64 (dashes decode as "+").
+    return uuidRegex.test(decoded) ? decoded : encodedId;
   } catch {
-    // Belt-and-suspenders: any residual decode failure falls back to the input.
     return encodedId;
   }
 }

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useMemo } from "react";
 import { useFourCornersStore } from "@/lib/store";
+import { useAccess } from "@/components/access-provider";
 import { notifyFile } from "@/lib/notify";
 import { VoiceTextarea } from "@/components/voice-textarea";
 import { VoiceInput } from "@/components/voice-input";
@@ -10,10 +11,10 @@ import { AssetLibraryModal } from "@/components/asset-library-modal";
 import { Library, Upload } from "lucide-react";
 import type { UserAsset } from "@/lib/field-registry";
 import { validateUpload, MAX_UPLOAD_BYTES, formatBytes } from "@/lib/upload-limits";
-import { checkQuotaForUpload } from "@/lib/db/user-storage";
-import { createClient } from "@/lib/supabase/client";
+import { checkQuotaForUpload } from "@/lib/api-client/quota";
 
 export function CaptionCreditEthics() {
+  const { user } = useAccess();
   const {
     creativeCommons,
     ethics,
@@ -85,7 +86,7 @@ export function CaptionCreditEthics() {
 
   /**
    * Add one or more library assets as consent documents. Library docs are
-   * already uploaded to Supabase — we stash the remote URL in `dataUrl` so
+   * already uploaded — we stash the stored URL in `dataUrl` so
    * the existing ConsentDocument shape keeps working without schema churn.
    */
   const handleConsentLibraryPick = (assets: UserAsset[]) => {
@@ -128,11 +129,6 @@ export function CaptionCreditEthics() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // Resolve user once per batch for quota checks.
-    const supabase = createClient();
-    const { data: { user } = { user: null } } =
-      supabase ? await supabase.auth.getUser() : { data: { user: null } };
-
     for (const file of Array.from(files)) {
       // Size check — shared module, 20 MB cap for documents.
       const sizeCheck = validateUpload(file, "document");
@@ -148,7 +144,7 @@ export function CaptionCreditEthics() {
 
       // Quota check
       if (user) {
-        const quota = await checkQuotaForUpload(user.id, file.size);
+        const quota = await checkQuotaForUpload(file.size);
         if (!quota.ok) {
           notifyFile.quotaExceeded(quota.used, quota.limit, quota.plan);
           continue;

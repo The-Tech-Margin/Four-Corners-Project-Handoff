@@ -4,7 +4,7 @@
  * Browsers other than Safari cannot decode HEIC natively, so iPhone uploads
  * end up unrenderable. We intercept HEIC files at the earliest upload entry
  * point and transparently convert to JPEG so the rest of the pipeline
- * (thumbnailing, IndexedDB cache, Supabase upload) sees a standard image.
+ * (thumbnailing, IndexedDB cache, storage upload) sees a standard image.
  *
  * The decoder (`heic2any`, ~1MB WASM) is dynamically imported only when an
  * HEIC file is actually detected, so non-iPhone users pay zero bundle cost.

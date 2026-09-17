@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { siteUrl } from "@/lib/attribution";
+import { BlockedUrlError, safeGet } from "@/lib/server/safe-fetch";
 
 export interface LinkPreviewData {
   url: string;
@@ -65,10 +67,9 @@ function getFavicon(html: string, baseUrl: string): string | undefined {
     if (match?.[1]) return resolveUrl(baseUrl, match[1]);
   }
 
-  // Fallback to Google's favicon service
+  // No third-party favicon service: the site's own default location or nothing.
   try {
-    const domain = new URL(baseUrl).hostname;
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    return new URL("/favicon.ico", baseUrl).toString();
   } catch {
     return undefined;
   }
@@ -170,33 +171,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-
-    const response = await fetch(url, {
-      signal: controller.signal,
+    const response = await safeGet(url, undefined, {
       headers: {
-        "User-Agent": "FourCornersBot/1.0 (+https://fourcorners.vercel.app)",
+        "User-Agent": `FourCornersBot/1.0 (+${siteUrl()})`,
         Accept: "text/html,application/xhtml+xml",
       },
-      redirect: "follow",
     });
 
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { url, title: undefined, description: undefined } satisfies LinkPreviewData,
-        {
-          status: 200,
-          headers: { "Cache-Control": "public, max-age=86400, s-maxage=86400" },
-        },
-      );
-    }
-
-    // Only parse HTML responses — skip PDFs, images, etc.
     const contentType = response.headers.get("content-type") || "";
-    if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
+    const isHtml =
+      contentType.includes("text/html") || contentType.includes("application/xhtml");
+
+    if (response.status >= 400 || !isHtml) {
       return NextResponse.json(
         { url, title: undefined, description: undefined } satisfies LinkPreviewData,
         {
@@ -206,25 +192,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Read only the first 16KB — OG tags are always in <head>
-    const reader = response.body?.getReader();
-    if (!reader) {
-      return NextResponse.json({ url } satisfies LinkPreviewData, { status: 200 });
-    }
-
-    let html = "";
-    const decoder = new TextDecoder();
-    const MAX_BYTES = 16 * 1024;
-
-    while (html.length < MAX_BYTES) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      html += decoder.decode(value, { stream: true });
-    }
-    reader.cancel();
+    const html = response.body;
 
     const data: LinkPreviewData = {
-      url: response.url, // Use final URL after redirects
+      url: response.finalUrl,
       title:
         getMetaContent(html, "og:title") ??
         getMetaContent(html, "twitter:title") ??
@@ -234,10 +205,10 @@ export async function GET(request: NextRequest) {
         getMetaContent(html, "twitter:description") ??
         getMetaContent(html, "description"),
       image: resolveUrl(
-        response.url,
+        response.finalUrl,
         getMetaContent(html, "og:image") ?? getMetaContent(html, "twitter:image"),
       ),
-      favicon: getFavicon(html, response.url),
+      favicon: getFavicon(html, response.finalUrl),
       siteName:
         getMetaContent(html, "og:site_name") ??
         getMetaContent(html, "application-name"),
@@ -276,6 +247,9 @@ export async function GET(request: NextRequest) {
       headers: { "Cache-Control": "public, max-age=86400, s-maxage=86400" },
     });
   } catch (err) {
+    if (err instanceof BlockedUrlError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     // Timeout or network error — return partial data rather than failing
     return NextResponse.json(
       { url } satisfies LinkPreviewData,

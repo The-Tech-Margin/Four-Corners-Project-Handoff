@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
-import { getTranscriptionTextByAudioPath } from "@/lib/db/voice-transcriptions";
+import { findTranscriptByAudioKey } from "@/lib/api-client/transcripts";
 
 export const TRANSCRIBE_PRIVACY =
   "A private API call to an AI transcription service will run. Your information is not stored or used by the AI for training.";
@@ -61,7 +61,7 @@ export function TranscribeModal({
     setBusy(false);
     if (clip.isLibrary && clip.audioStoragePath) {
       setExistingText(undefined);
-      getTranscriptionTextByAudioPath(clip.audioStoragePath)
+      findTranscriptByAudioKey(clip.audioStoragePath)
         .then((t) => {
           if (!cancelled) setExistingText(t ?? null);
         })

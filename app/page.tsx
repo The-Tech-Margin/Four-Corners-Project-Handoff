@@ -8,8 +8,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import {
   notify,
   notifyAuth,
@@ -36,19 +34,19 @@ import type { FourCornersMetadataExtended } from "@/lib/schema";
 import { useFourCornersStore } from "@/lib/store";
 import { useMediaCleanup } from "@/hooks/use-media-cleanup";
 import {
-  getProjectBySlugOrId,
-  userHasFileWithSlug,
-  createProject,
-  updateProject,
+  findOwnProjectBySlug,
   togglePublish,
   toggleGallery,
-  updateProjectTags,
+  setProjectTags as saveProjectTags,
   GALLERY_LIMIT_REACHED,
-} from "@/lib/db/projects";
+} from "@/lib/api-client/project-actions";
+import * as projectsApi from "@/lib/api-client/projects";
+import { ApiError } from "@/lib/api-client/http";
+import { useAccess } from "@/components/access-provider";
 import { decodeProjectId, encodeProjectId } from "@/lib/encode-id";
 import { SEED_TAGS, displayTag, normalizeTags } from "@/lib/tags";
 import { Eye, X } from "lucide-react";
-import { refreshVoiceRecordingUrls } from "@/lib/supabase-voice-storage";
+import { refreshVoiceRecordingUrls } from "@/lib/api-client/voice";
 import {
   savePendingImport,
   getPendingImport,
@@ -63,7 +61,6 @@ import { FourCornersJsPreview } from "@/components/four-corners-js-preview";
 import { useAutosave } from "@/hooks/useAutosave";
 import { AutosaveIndicator } from "@/components/autosave-indicator";
 import { useLocalPersistence } from "@/hooks/useLocalPersistence";
-import { DEV_USER, isDevAuthClient } from "@/lib/dev-auth";
 import dynamic from "next/dynamic";
 
 const SketchboardEditor = dynamic(
@@ -93,7 +90,7 @@ export default function Home() {
   const [projectTags, setProjectTags] = useState<string[]>([]);
   const [authChecked, setAuthChecked] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
-  const supabase = createClient();
+  const { user, authLoading, subscribe } = useAccess();
   const router = useRouter();
   const projectId = useFourCornersStore((state) => state.projectId);
   const projectSlug = useFourCornersStore((state) => state.projectSlug);
@@ -146,213 +143,188 @@ export default function Home() {
 
   // Sync published/gallery status from DB whenever projectId changes.
   useEffect(() => {
-    if (!projectId || !supabase) return;
+    if (!projectId) return;
 
     let cancelled = false;
     (async () => {
       try {
-        const { data, error } = await supabase
-          .from("projects")
-          .select("published, in_gallery")
-          .eq("id", projectId)
-          .single();
-
-        if (!cancelled && data && !error) {
-          setIsPublished(data.published ?? false);
-          setInGallery(data.in_gallery ?? false);
-          setProjectTags(data.tags ?? []);
-        }
+        const { project } = await projectsApi.get(projectId);
+        if (cancelled) return;
+        setIsPublished(project.published);
+        setInGallery(project.in_gallery);
+        setProjectTags(project.tags ?? []);
       } catch {
-        // Non-critical — button defaults to "Publish" which is safe
+        // Non-critical — the button defaults to "Publish", which is safe.
       }
     })();
 
-    return () => { cancelled = true; };
-  }, [projectId, supabase]);
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
-  // Track authentication state
+  // Reflect the app-wide session into local state, and handle the URL params
+  // that decide what the editor opens with.
   useEffect(() => {
-    // Dev auth bypass
-    if (isDevAuthClient()) {
-      setIsLoggedIn(true);
-      setCurrentUserId(DEV_USER.id);
-      setAuthChecked(true);
-      wasLoggedInRef.current = true;
-      setTimeout(() => { isInitialLoadRef.current = false; }, 100);
-      return;
+    if (authLoading) return;
+
+    const loggedIn = !!user;
+    setIsLoggedIn(loggedIn);
+    setCurrentUserId(user?.id ?? null);
+    wasLoggedInRef.current = loggedIn;
+
+    const params = new URLSearchParams(window.location.search);
+    const hasFileParam = params.get("file") || params.get("project");
+    const isNewFile = params.get("new") === "true";
+    const authRequired = params.get("auth") === "required";
+
+    if (isNewFile) {
+      reset();
+      window.history.replaceState({}, "", "/");
     }
 
-    if (!supabase) return;
+    if (authRequired) {
+      window.history.replaceState({}, "", "/");
+    }
 
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      const loggedIn = !!data.session?.user;
-      setIsLoggedIn(loggedIn);
-      setCurrentUserId(data.session?.user?.id || null);
-      wasLoggedInRef.current = loggedIn;
+    // Signed out with nothing shared to show: clear any stale editor state.
+    if (!loggedIn && !hasFileParam) {
+      reset();
+    }
 
-      const params = new URLSearchParams(window.location.search);
-      const hasFileParam = params.get("file") || params.get("project");
-      const isNewFile = params.get("new") === "true";
-      const authRequired = params.get("auth") === "required";
+    setAuthChecked(true);
 
-      if (isNewFile) {
-        // Reset state for new file and clear URL param
+    setTimeout(() => {
+      isInitialLoadRef.current = false;
+    }, 100);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset is stable; re-running on it would wipe the editor
+  }, [user, authLoading]);
+
+  // React to sign-in and sign-out for toasts and the shared-file import.
+  useEffect(() => {
+    return subscribe((event) => {
+      if (event.type === "SIGNED_OUT") {
+        notifyAuth.signedOut();
+        return;
+      }
+
+      const signedInUser = event.user;
+      if (!event.fresh) return;
+
+      notifyAuth.signedIn(signedInUser.email || "");
+
+      void (async () => {
+        await clearLocalStorageOnSignIn();
         reset();
-        window.history.replaceState({}, "", "/");
-      }
+      })();
 
-      // Clean up auth=required param
-      if (authRequired) {
-        window.history.replaceState({}, "", "/");
-      }
-
-      // Gate: not logged in → reset state so no stale data is visible
-      if (!loggedIn && !hasFileParam) {
-        reset();
-      }
-
-      setAuthChecked(true);
-
-      // Mark initial load complete after checking session
-      setTimeout(() => {
-        isInitialLoadRef.current = false;
-      }, 100);
-    };
-    checkAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, session: Session | null) => {
-        const wasAlreadyLoggedIn = wasLoggedInRef.current;
-        setIsLoggedIn(!!session?.user);
-        setCurrentUserId(session?.user?.id || null);
-        wasLoggedInRef.current = !!session?.user;
-
-        // Determine if this is a fresh sign-in or just a token refresh.
-        const isFreshSignIn =
-          event === "SIGNED_IN" &&
-          !isInitialLoadRef.current &&
-          !wasAlreadyLoggedIn;
-
-        // Toast notification only for fresh sign-in (not page refresh)
-        if (isFreshSignIn && session?.user) {
-          notifyAuth.signedIn(session.user.email || "");
-
+      setTimeout(async () => {
+        try {
           // Check for pending shared file import (IndexedDB first, then localStorage fallback)
           setTimeout(async () => {
+          try {
+          // Check IndexedDB first (has full metadata including voice recordings)
+          let importData = await getPendingImport();
+          const hasFullMetadata = !!importData?.metadata;
+
+          // Fallback to localStorage (minimal data, will need DB fetch)
+          if (!importData) {
+          const localPending = localStorage.getItem(
+            "pendingSharedImport",
+          );
+          if (localPending) {
             try {
-              // Check IndexedDB first (has full metadata including voice recordings)
-              let importData = await getPendingImport();
-              const hasFullMetadata = !!importData?.metadata;
-
-              // Fallback to localStorage (minimal data, will need DB fetch)
-              if (!importData) {
-                const localPending = localStorage.getItem(
-                  "pendingSharedImport",
-                );
-                if (localPending) {
-                  try {
-                    importData = JSON.parse(localPending);
-                    localStorage.removeItem("pendingSharedImport");
-                  } catch {
-                    localStorage.removeItem("pendingSharedImport");
-                  }
-                }
-              } else {
-                // Clear IndexedDB entry
-                await clearPendingImport();
-              }
-
-              if (!importData) return;
-
-              // Check if intent is still fresh (within 5 minutes)
-              if (Date.now() - importData.timestamp >= 5 * 60 * 1000) {
-                return;
-              }
-
-              const userId = session.user.id;
-
-              // If we have full metadata from IndexedDB, use it directly
-              if (hasFullMetadata && importData.metadata) {
-                // Check if user has existing file with this slug
-                const existingProject = importData.slug
-                  ? await userHasFileWithSlug(userId, importData.slug)
-                  : null;
-
-                setSharedFileData({
-                  slug: importData.slug,
-                  metadata: importData.metadata,
-                  mainImageUrl: importData.mainImageUrl,
-                  hasExisting: !!existingProject,
-                });
-                setShowSharedImportDialog(true);
-
-                // Restore the share URL so context is visible
-                if (importData.encodedId) {
-                  window.history.replaceState(
-                    {},
-                    "",
-                    `/?file=${importData.encodedId}`,
-                  );
-                }
-              } else {
-                // Fallback: fetch from DB using encodedId
-                const decodedId = importData.encodedId
-                  ? decodeProjectId(importData.encodedId)
-                  : importData.slug;
-                const project = await getProjectBySlugOrId(decodedId);
-
-                if (!project) {
-                  throw new Error("Shared file not found");
-                }
-
-                const existingProject = project.slug
-                  ? await userHasFileWithSlug(userId, project.slug)
-                  : null;
-
-                setSharedFileData({
-                  slug: project.slug || importData.slug,
-                  metadata: project.metadata,
-                  mainImageUrl: project.main_image_url,
-                  hasExisting: !!existingProject,
-                });
-                setShowSharedImportDialog(true);
-
-                if (importData.encodedId) {
-                  window.history.replaceState(
-                    {},
-                    "",
-                    `/?file=${importData.encodedId}`,
-                  );
-                }
-              }
-            } catch (error) {
-              console.error("Failed to auto-import shared file:", error);
-              notify.error(`Failed to import: ${error instanceof Error ? error.message : "Unknown error"}`);
-              await clearPendingImport();
+              importData = JSON.parse(localPending);
+              localStorage.removeItem("pendingSharedImport");
+            } catch {
+              localStorage.removeItem("pendingSharedImport");
             }
+          }
+          } else {
+          // Clear IndexedDB entry
+          await clearPendingImport();
+          }
+
+          if (!importData) return;
+
+          // Check if intent is still fresh (within 5 minutes)
+          if (Date.now() - importData.timestamp >= 5 * 60 * 1000) {
+          return;
+          }
+
+          const userId = signedInUser.id;
+
+          // If we have full metadata from IndexedDB, use it directly
+          if (hasFullMetadata && importData.metadata) {
+          // Check if user has existing file with this slug
+          const existingProject = importData.slug
+            ? await findOwnProjectBySlug(importData.slug)
+            : null;
+
+          setSharedFileData({
+            slug: importData.slug,
+            metadata: importData.metadata,
+            mainImageUrl: importData.mainImageUrl,
+            hasExisting: !!existingProject,
+          });
+          setShowSharedImportDialog(true);
+
+          // Restore the share URL so context is visible
+          if (importData.encodedId) {
+            window.history.replaceState(
+              {},
+              "",
+              `/?file=${importData.encodedId}`,
+            );
+          }
+          } else {
+          // Fallback: fetch from DB using encodedId
+          const decodedId = importData.encodedId
+            ? decodeProjectId(importData.encodedId)
+            : importData.slug;
+          const { project } = await projectsApi.get(decodedId);
+
+          if (!project) {
+            throw new Error("Shared file not found");
+          }
+
+          const existingProject = project.slug
+            ? await findOwnProjectBySlug(project.slug)
+            : null;
+
+          setSharedFileData({
+            slug: project.slug || importData.slug,
+            metadata: project.metadata,
+            mainImageUrl: project.main_image_url,
+            hasExisting: !!existingProject,
+          });
+          setShowSharedImportDialog(true);
+
+          if (importData.encodedId) {
+            window.history.replaceState(
+              {},
+              "",
+              `/?file=${importData.encodedId}`,
+            );
+          }
+          }
+          } catch (error) {
+          console.error("Failed to auto-import shared file:", error);
+          notify.error(`Failed to import: ${error instanceof Error ? error.message : "Unknown error"}`);
+          await clearPendingImport();
+          }
           }, 1000);
-        } else if (event === "SIGNED_OUT") {
-          notifyAuth.signedOut();
-        } else if (event === "USER_UPDATED") {
-          notifyAuth.accountUpdated();
+        } catch (error) {
+          console.error("Failed to auto-import shared file:", error);
+          notify.error(
+            `Failed to import: ${error instanceof Error ? error.message : "Unknown error"}`,
+          );
+          await clearPendingImport();
         }
-
-        // DATA HIERARCHY: Supabase (logged in) > IndexedDB (logged out)
-        if (isFreshSignIn && session?.user) {
-          await clearLocalStorageOnSignIn();
-          reset();
-        }
-
-        // Mark initial load complete after first auth event
-        isInitialLoadRef.current = false;
-      },
-    );
-
-    return () => subscription.unsubscribe();
-  }, [supabase]);
+      }, 1000);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset is stable
+  }, [subscribe]);
 
   const scrollToSection = (sectionId: string) => {
     const ref = sectionRefs[sectionId as keyof typeof sectionRefs];
@@ -447,17 +419,8 @@ export default function Home() {
       setLoadingProject(true);
 
       try {
-        // Get current session to check user ownership
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        // Load project by slug or ID
-        const project = await getProjectBySlugOrId(slugOrId, session?.user?.id);
-
-        // Check if viewing someone else's project
-        const isOwnProject =
-          session?.user?.id && session.user.id === project.user_id;
+        const { project, viewer } = await projectsApi.get(slugOrId);
+        const isOwnProject = viewer.isOwner;
 
         if (!isOwnProject) {
           // Security: Only allow viewing shared files if they are published
@@ -466,12 +429,9 @@ export default function Home() {
             throw new Error("This file is private and cannot be accessed");
           }
 
-          // If user is logged in and this is a slug-based share, offer to import
-          if (session?.user?.id && project.slug) {
-            const existingProject = await userHasFileWithSlug(
-              session.user.id,
-              project.slug,
-            );
+          // Signed-in viewers can take a copy of a shared file.
+          if (viewer.isAuthenticated && project.slug) {
+            const existingProject = await findOwnProjectBySlug(project.slug);
 
             setSharedFileData({
               slug: project.slug,
@@ -576,7 +536,6 @@ export default function Home() {
     setImageSrc,
     markSaved,
     setVoiceTranscriptions,
-    supabase,
   ]);
 
   // Handle shared file import confirmation
@@ -588,52 +547,37 @@ export default function Home() {
     try {
       setShowSharedImportDialog(false);
 
-      const existingProject = await userHasFileWithSlug(
-        currentUserId,
-        sharedFileData.slug,
-      );
+      const existingProject = await findOwnProjectBySlug(sharedFileData.slug);
 
       if (existingProject) {
-        await updateProject(
-          existingProject.id,
-          sharedFileData.metadata,
-          currentUserId,
-          sharedFileData.mainImageUrl,
-        );
+        const { project } = await projectsApi.save(existingProject.id, {
+          metadata: sharedFileData.metadata,
+        });
         setProjectId(
-          existingProject.id,
+          project.id,
           sharedFileData.slug,
-          existingProject.title ?? undefined,
+          project.title ?? undefined,
         );
         notify.success(`"${sharedFileData.slug}" updated`);
       } else {
         let finalSlug = sharedFileData.slug;
-        let attempts = 0;
-        const maxAttempts = 5;
 
-        while (attempts < maxAttempts) {
+        // The slug may already be taken by someone else's project — the
+        // copy gets a suffixed name rather than failing.
+        for (let attempt = 0; attempt < 5; attempt += 1) {
           try {
-            const newProject = await createProject(
-              sharedFileData.metadata,
-              currentUserId,
-              finalSlug,
-              sharedFileData.mainImageUrl,
-            );
-            setProjectId(
-              newProject.id,
-              newProject.slug || "",
-              newProject.title ?? undefined,
-            );
+            const { project } = await projectsApi.create({
+              metadata: sharedFileData.metadata,
+              slug: finalSlug,
+            });
+            setProjectId(project.id, project.slug || "", project.title ?? undefined);
             notify.success(`"${finalSlug}" created`);
             break;
           } catch (createError: unknown) {
-            const pgError = createError as { code?: string };
-            if (pgError.code === "23505" && attempts < maxAttempts - 1) {
-              attempts++;
-              finalSlug = `${sharedFileData.slug}-${Date.now()}`;
-            } else {
-              throw createError;
-            }
+            const conflict =
+              createError instanceof ApiError && createError.code === "SLUG_TAKEN";
+            if (!conflict || attempt === 4) throw createError;
+            finalSlug = `${sharedFileData.slug}-${Date.now()}`;
           }
         }
       }
@@ -901,8 +845,6 @@ export default function Home() {
                     setInGallery(true);
                     notify.success("Published to gallery");
                   }
-                  // Invalidate gallery caches so the change is visible immediately
-                  fetch("/api/gallery/invalidate", { method: "POST" }).catch(() => {});
                   try { sessionStorage.removeItem("fc-gallery-cache"); } catch {}
                 } catch (err) {
                   if (err instanceof Error && err.message === GALLERY_LIMIT_REACHED) {
@@ -945,10 +887,8 @@ export default function Home() {
                             const next = projectTags.filter((t) => t !== tag);
                             setProjectTags(next);
                             const currentId = useFourCornersStore.getState().projectId;
-                            const { data: { session: s } } = await createClient().auth.getSession();
-                            const userId = s?.user?.id;
-                            if (currentId && userId) {
-                              updateProjectTags(currentId, userId, next).catch(() => {});
+                            if (currentId) {
+                              saveProjectTags(currentId, next).catch(() => {});
                             }
                           }}
                           className="hover:opacity-70 transition-opacity"
@@ -970,10 +910,8 @@ export default function Home() {
                         const next = normalizeTags([...projectTags, tag]);
                         setProjectTags(next);
                         const currentId = useFourCornersStore.getState().projectId;
-                        const { data: { session: s } } = await createClient().auth.getSession();
-                            const userId = s?.user?.id;
-                        if (currentId && userId) {
-                          updateProjectTags(currentId, userId, next).catch(() => {});
+                        if (currentId) {
+                          saveProjectTags(currentId, next).catch(() => {});
                         }
                       }}
                       className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors cursor-pointer"

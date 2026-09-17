@@ -11,7 +11,8 @@ import {
   copyFourCornersJSON,
   copyIIIFManifest,
 } from "@/lib/metadata-export";
-import { getProject, type ProjectRecord } from "@/lib/db/projects";
+import { getProject } from "@/lib/api-client/project-actions";
+import type { ProjectRecord } from "@/lib/projects/types";
 import { normalizeFromProjectRecord } from "@/lib/export/normalize";
 import type { ExportFormat, ExportResult } from "@/lib/export/types";
 import { useExportEngine } from "@/hooks/useExportEngine";

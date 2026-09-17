@@ -2,8 +2,10 @@
  * OpenAPI 3.1 spec for the Four Corners public API.
  *
  * Schemas mirror the Zod definitions in lib/field-registry.ts.
- * Generated as a static object so Postman / external tools can import via URL.
+ * Generated as a static object so external tools can import it via URL.
  */
+
+import { GENERATOR } from "./attribution";
 
 export function buildOpenAPISpec(baseUrl: string) {
   return {
@@ -21,10 +23,9 @@ export function buildOpenAPISpec(baseUrl: string) {
         "rate limit from 100 to 1000 requests/minute. Anonymous callers are " +
         "limited per-IP; keyed callers per-key. Exceeding the limit returns " +
         "`429` with `Retry-After` and `X-RateLimit-*` headers.\n\n" +
-        "In Postman, set a `{{baseUrl}}` environment variable to this host and " +
-        "(optionally) an `{{apiKey}}` variable used as the collection Bearer token.",
-      contact: { name: "The Tech Margin", url: "https://thetechmargin.com" },
+        "Import this document into any OpenAPI 3.1 client to explore the API.",
       license: { name: "MIT" },
+      "x-generator": GENERATOR,
     },
     servers: [{ url: baseUrl, description: "Current host" }],
     security: [{}, { bearerAuth: [] }],
@@ -449,7 +450,7 @@ export function buildOpenAPISpec(baseUrl: string) {
             country: { type: "string" },
             formattedLocation: { type: "string" },
             capturedAt: { type: "string" },
-            source: { type: "string", enum: ["exif", "device", "manual", "voicevault"] },
+            source: { type: "string", enum: ["exif", "device", "manual"] },
             address: {
               type: "object",
               properties: {

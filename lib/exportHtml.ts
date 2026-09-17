@@ -1,6 +1,22 @@
+/**
+ * HTML exports: a snippet to paste into a page, or a standalone file.
+ *
+ * @author TheTechMargin
+ * @copyright 2026 TheTechMargin
+ */
+
 import { toFourCornersSchema } from "./schema";
 import type { FourCornersMetadataExtended } from "./schema";
 import { escapeHtml } from "./export/escape";
+import { GENERATOR } from "./attribution";
+
+/**
+ * The Four Corners Project's viewer, pinned to a release. Point
+ * NEXT_PUBLIC_FC_VIEWER_CDN_BASE at your own copy to self-host it.
+ */
+const VIEWER_CDN_BASE =
+  process.env.NEXT_PUBLIC_FC_VIEWER_CDN_BASE ||
+  "https://cdn.jsdelivr.net/gh/four-corners/fourcorners.js@1.1.2/dist";
 
 export interface ExportHtmlOptions {
   mode: "snippet" | "standalone";
@@ -15,7 +31,8 @@ function generateSnippet(
   id: string,
   caption: string
 ): string {
-  return `<!-- Four Corners Image: ${escapeHtml(caption)} -->
+  return `<!-- ${GENERATOR} -->
+<!-- Four Corners Image: ${escapeHtml(caption)} -->
 <div class="fc-embed" style="max-width:800px;">
   <img src="${imgSrc}" alt="${escapeHtml(
     caption
@@ -24,8 +41,8 @@ function generateSnippet(
 <script data-4c-meta="${id}" type="application/json">
 ${json}
 </script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/four-corners/fourcorners.js@main/dist/fourcorners.min.css">
-<script src="https://cdn.jsdelivr.net/gh/four-corners/fourcorners.js@main/dist/fourcorners.min.js" defer></script>
+<link rel="stylesheet" href="${VIEWER_CDN_BASE}/fourcorners.min.css">
+<script src="${VIEWER_CDN_BASE}/fourcorners.min.js" defer></script>
 <script>document.addEventListener('DOMContentLoaded',()=>new FourCorners('[data-4c="${id}"]',{caption:true,credit:true}));</script>
 <!-- End Four Corners -->`;
 }
@@ -43,10 +60,11 @@ function generateStandalone(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="generator" content="${GENERATOR}">
   <title>${escapeHtml(caption)} — Four Corners</title>
   
   <!-- Four Corners Viewer -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/four-corners/fourcorners.js@main/dist/fourcorners.min.css">
+  <link rel="stylesheet" href="${VIEWER_CDN_BASE}/fourcorners.min.css">
   
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -128,18 +146,13 @@ function generateStandalone(
       : ""
   }
   
-  <footer class="fc-footer">
-    Created with <a href="https://four-corners.thetechmargin.com" target="_blank">Four Corners Metadata Editor</a>
-    · <a href="https://fourcornersproject.org" target="_blank">Four Corners Project</a>
-  </footer>
-
   <!-- Metadata -->
   <script data-4c-meta="image" type="application/json">
 ${json}
   </script>
   
   <!-- Four Corners Viewer -->
-  <script src="https://cdn.jsdelivr.net/gh/four-corners/fourcorners.js@main/dist/fourcorners.min.js"></script>
+  <script src="${VIEWER_CDN_BASE}/fourcorners.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       new FourCorners('[data-4c="image"]', {

@@ -74,10 +74,10 @@ describe("parseMetadataText field fidelity", () => {
       date: "2026-01-14",
       linkedProjectId: "proj-9",
       linkedProjectSlug: "linked-slug",
-      storage_url: "https://supabase.example.com/storage/v1/object/public/x",
+      storage_url: "https://media.example.org/x",
       thumbnail_storage_url:
-        "https://supabase.example.com/storage/v1/object/public/x.thumb",
-      audioStorageUrl: "https://supabase.example.com/storage/v1/object/sign/a",
+        "https://media.example.org/x.thumb",
+      audioStorageUrl: "https://media.example.org/signed/a",
       audioMimeType: "audio/webm",
       audioDuration: 12.5,
     });
@@ -107,7 +107,7 @@ describe("parseMetadataText field fidelity", () => {
       text: "spoken words",
       transcribedAt: "2026-01-01T00:00:00.000Z",
       fieldId: "backstory",
-      audioStorageUrl: "https://supabase.example.com/storage/v1/object/sign/v",
+      audioStorageUrl: "https://media.example.org/signed/v",
       mimeType: "audio/webm",
       duration: 4.2,
     };

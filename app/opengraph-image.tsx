@@ -1,10 +1,6 @@
 import { ImageResponse } from "next/og";
-import { createClient } from "@supabase/supabase-js";
-import { getSupabasePublicKey } from "@/lib/supabase/public-key";
 
-export const runtime = "edge";
-
-export const alt = "Four Corners Metadata Editor";
+export const alt = "Four Corners";
 export const size = {
   width: 1200,
   height: 630,
@@ -24,28 +20,8 @@ const DEFAULTS = {
   cornerCC: "#f97316",
 };
 
-/** Try to load the global palette's dark overrides from Supabase */
-async function getGlobalColors() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = getSupabasePublicKey();
-  if (!url || !key) return null;
-
-  try {
-    const supabase = createClient(url, key);
-    const { data } = await supabase
-      .from("persona_palettes")
-      .select("dark_overrides")
-      .eq("is_global", true)
-      .maybeSingle();
-
-    return data?.dark_overrides as Record<string, string> | null;
-  } catch {
-    return null;
-  }
-}
-
 export default async function Image() {
-  const overrides = await getGlobalColors();
+  const overrides: Record<string, string> | null = null;
 
   const bg = overrides?.["--fc-bg"] || DEFAULTS.bg;
   const text = overrides?.["--fc-text"] || DEFAULTS.text;

@@ -147,7 +147,7 @@ export function useLocalPersistence() {
       // Fallback: if user has a cloud project loaded, re-fetch from DB
       if (state.projectId) {
         try {
-          const { getProject } = await import("@/lib/db/projects");
+          const { getProject } = await import("@/lib/api-client/project-actions");
           const project = await getProject(state.projectId);
           if (project?.main_image_url) {
             useFourCornersStore.setState({

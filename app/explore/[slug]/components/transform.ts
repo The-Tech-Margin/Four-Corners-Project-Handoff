@@ -7,7 +7,7 @@
  */
 
 import type { CanvasDocument, ShapeJSON, ConnectionJSON } from "@fourcorners/canvas";
-import type { ProjectRecord } from "@/lib/db/projects";
+import type { ProjectRecord } from "@/lib/projects/types";
 import { getLayout } from "@/lib/canvas-layout";
 import {
   resolveCornerColors,

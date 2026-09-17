@@ -38,15 +38,15 @@ function fixtureContextItem(overrides: Partial<ContextItem> = {}): ContextItem {
     thumbnailDataUrl: "data:image/jpeg;base64,thumb",
     storage_path: "user-1/context-images/proj-1/photo.jpg",
     storage_url:
-      "https://abc.supabase.co/storage/v1/object/public/context-media/photo.jpg",
+      "https://media.example.org/photo.jpg",
     thumbnail_storage_path: "user-1/context-images/proj-1/thumbs/photo.jpg",
     thumbnail_storage_url:
-      "https://abc.supabase.co/storage/v1/object/public/context-media/thumbs/photo.jpg",
+      "https://media.example.org/thumbs/photo.jpg",
     audioDataUrl: "data:audio/webm;base64,audio",
     audioBlobId: 11,
     audioStoragePath: "user-1/context-audio/proj-1/ctx-upload.webm",
     audioStorageUrl:
-      "https://abc.supabase.co/storage/v1/object/public/context-media/ctx-upload.webm",
+      "https://media.example.org/ctx-upload.webm",
     audioMimeType: "audio/webm",
     audioDuration: 8.25,
     ...overrides,
@@ -66,7 +66,7 @@ function fixtureVoice(
     audioBlobId: 13,
     audioStoragePath: "user-1/voice-recordings/proj-1/rec-1.webm",
     audioStorageUrl:
-      "https://abc.supabase.co/storage/v1/object/sign/voice-recordings/rec-1.webm",
+      "https://media.example.org/voice/rec-1.webm",
     mimeType: "audio/webm",
     duration: 4.5,
     ...overrides,
@@ -132,7 +132,7 @@ function fixtureMetadata(): FourCornersMetadataExtended {
       identityProtected: true,
       identityProtectionDetails: "Faces obscured",
       consentDocumentUrl:
-        "https://abc.supabase.co/storage/v1/object/sign/consent-documents/doc.pdf",
+        "https://media.example.org/docs/doc.pdf",
       aiAltered: true,
       aiAlteredDetails: "Background AI-extended",
     },

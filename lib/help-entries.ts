@@ -1,7 +1,7 @@
 /**
  * Row builder for the floating help launcher.
  *
- * Pure so the authenticated / unauthenticated / admin gating is unit-testable
+ * Pure so the authenticated / unauthenticated gating is unit-testable
  * without React. The launcher component maps `icon` to a lucide glyph and
  * `accentToken` to a --fc-corner-* variable, so row colours follow the active
  * persona palette (dark/light + overrides) automatically.
@@ -11,12 +11,7 @@
  */
 import { filterByQuery } from "@/lib/help-search";
 
-export type HelpCategory =
-  | "Get started"
-  | "Workspace"
-  | "Help"
-  | "Design"
-  | "Admin";
+export type HelpCategory = "Get started" | "Workspace" | "Help" | "Design";
 
 /** Render order of the launcher's category groups. */
 export const HELP_CATEGORY_ORDER: HelpCategory[] = [
@@ -24,7 +19,6 @@ export const HELP_CATEGORY_ORDER: HelpCategory[] = [
   "Workspace",
   "Help",
   "Design",
-  "Admin",
 ];
 
 export type HelpIconName =
@@ -40,20 +34,12 @@ export type HelpIconName =
   | "api"
   | "accessibility"
   | "book"
-  | "palette"
-  | "admin"
-  | "shield";
+  | "palette";
 
 export type HelpAction =
   | { type: "route"; href: string }
   | { type: "external"; href: string }
   | { type: "event"; name: string };
-
-/** External published API reference. Mirrors the menu "API Docs" link: the
- *  Vercel env var wins when set; the default is the published Postman docs. */
-const API_DOCS_URL =
-  process.env.NEXT_PUBLIC_API_DOCS_URL ||
-  "https://documenter.getpostman.com/view/54883007/2sBXqRiwAo#intro";
 
 export interface HelpEntry {
   id: string;
@@ -69,7 +55,6 @@ export interface HelpEntry {
 
 export interface HelpEntryContext {
   isAuthed: boolean;
-  isAdmin: boolean;
 }
 
 const CONTEXT = "--fc-corner-context";
@@ -80,9 +65,9 @@ const CC = "--fc-corner-cc";
 /**
  * Build the launcher rows for the current access state. Help destinations
  * mirror the menu "Help" paradigm: signed-out points at /docs, signed-in at the
- * comprehensive /docs/creator, and admins additionally get the Admin group.
+ * comprehensive /docs/creator.
  */
-export function buildHelpEntries({ isAuthed, isAdmin }: HelpEntryContext): HelpEntry[] {
+export function buildHelpEntries({ isAuthed }: HelpEntryContext): HelpEntry[] {
   const docsPage = isAuthed ? "/docs/creator" : "/docs";
   const entries: HelpEntry[] = [];
 
@@ -112,7 +97,6 @@ export function buildHelpEntries({ isAuthed, isAdmin }: HelpEntryContext): HelpE
       { id: "help-publishing", category: "Help", title: "Saving, drafts & publishing", subtitle: "How visibility works", icon: "eye", accentToken: LINKS, keywords: ["publish", "draft", "visibility", "gallery"], action: { type: "route", href: "/docs/creator#publishing" } },
       { id: "help-field-reference", category: "Help", title: "Field reference", subtitle: "Every corner's fields", icon: "list", accentToken: CC, keywords: ["fields", "reference", "metadata"], action: { type: "route", href: "/docs/creator#field-reference" } },
       { id: "help-api", category: "Help", title: "Public API", subtitle: "Read-only gallery API", icon: "api", accentToken: CONTEXT, keywords: ["api", "rest", "json", "developers"], action: { type: "route", href: "/docs/creator#api" } },
-      { id: "api-docs", category: "Help", title: "API reference", subtitle: "Browsable endpoints & examples — opens in a new tab", icon: "api", accentToken: BACKSTORY, keywords: ["api", "reference", "postman", "endpoints", "external"], action: { type: "external", href: API_DOCS_URL } },
     );
   }
   entries.push(
@@ -123,14 +107,6 @@ export function buildHelpEntries({ isAuthed, isAdmin }: HelpEntryContext): HelpE
   // Design (signed-in)
   if (isAuthed) {
     entries.push({ id: "theme", category: "Design", title: "Theme & palette", subtitle: "Colours, dark mode and persona", icon: "palette", accentToken: CC, keywords: ["theme", "palette", "colours", "colors", "persona", "dark mode"], action: { type: "event", name: "fc:open-palette" } });
-  }
-
-  // Admin (admin / super_admin)
-  if (isAdmin) {
-    entries.push(
-      { id: "admin-dashboard", category: "Admin", title: "Admin dashboard", subtitle: "Stats, users, invites, settings", icon: "admin", accentToken: CONTEXT, keywords: ["admin", "dashboard", "users", "invites", "settings"], action: { type: "route", href: "/admin" } },
-      { id: "admin-guide", category: "Admin", title: "Admin guide", subtitle: "What each back-office section does", icon: "shield", accentToken: CC, keywords: ["admin", "guide", "roles", "back office"], action: { type: "route", href: "/docs/admin" } },
-    );
   }
 
   return entries;

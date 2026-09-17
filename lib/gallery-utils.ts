@@ -3,7 +3,7 @@
  * /api/gallery and /api/search endpoints.
  */
 
-import type { ProjectRecord } from "@/lib/db/projects";
+import type { ProjectRecord } from "@/lib/projects/types";
 
 export interface ImageSet {
   root: ProjectRecord;

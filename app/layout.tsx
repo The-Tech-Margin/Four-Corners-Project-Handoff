@@ -1,6 +1,6 @@
 /**
- * Four Corners Metadata Editor
- * Digital implementation of Fred Ritchin's Four Corners Project
+ * Four Corners — structured photo metadata editor built on the
+ * four-corners model (context, links, backstory, authorship & ethics).
  *
  * @author TheTechMargin
  * @copyright 2025 TheTechMargin
@@ -10,21 +10,17 @@
 
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
-import { Geist, Geist_Mono, Pacifico } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "react-hot-toast";
 import { Footer } from "@/components/footer";
-import { WebVitalsReporter } from "@/components/web-vitals-reporter";
-import { PageViewReporter } from "@/components/page-view-reporter";
 import { PersonaProvider } from "@/components/persona-provider";
-import { IssueReporterProvider } from "@/components/issue-reporter/IssueReporterProvider";
 import { ImageProtection } from "@/components/image-protection";
 import { HashAnchorSync } from "@/components/hash-anchor-sync";
 import { AccessProvider } from "@/components/access-provider";
-import { MaintenanceBanner } from "@/components/maintenance-banner";
+import { CapabilitiesProvider } from "@/components/capabilities-provider";
 import { HelpLauncherProvider } from "@/components/help-launcher/HelpLauncherProvider";
+import { ATTRIBUTION, GENERATOR, siteUrl } from "@/lib/attribution";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,12 +29,6 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const pacifico = Pacifico({
-  weight: "400",
-  variable: "--font-pacifico",
   subsets: ["latin"],
 });
 
@@ -51,12 +41,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Four Corners Metadata Editor",
+  metadataBase: new URL(siteUrl()),
+  applicationName: ATTRIBUTION.product,
+  title: "Four Corners",
   description:
-    "A digital tool for implementing Fred Ritchin's Four Corners Project framework—enriching photojournalism with context, ethics documentation, and transparency. Built by TheTechMargin to support visual storytelling with integrity.",
+    "Structured photo metadata editor built on the four-corners model: context, links, backstory, and authorship & ethics, plus location, camera metadata and voice notes.",
   keywords: [
-    "Four Corners Project",
-    "Fred Ritchin",
+    "four corners",
     "photojournalism",
     "metadata",
     "photography ethics",
@@ -65,21 +56,18 @@ export const metadata: Metadata = {
     "context",
     "backstory",
     "Creative Commons",
-    "TheTechMargin",
+    "IIIF",
   ],
-  authors: [
-    { name: "supersonic", url: "https://twitter.com/supersonic" },
-    { name: "TheTechMargin", url: "https://www.thetechmargin.com" },
-  ],
-  creator: "supersonic, TheTechMargin",
-  publisher: "TheTechMargin",
-  metadataBase: new URL("https://four-corners.thetechmargin.com"),
+  authors: [{ name: ATTRIBUTION.name, url: ATTRIBUTION.url }],
+  creator: ATTRIBUTION.name,
+  publisher: ATTRIBUTION.name,
+  generator: GENERATOR,
   openGraph: {
-    title: "Four Corners Metadata Editor",
+    title: "Four Corners",
     description:
-      "Digital implementation of Fred Ritchin's Four Corners Project—a framework for enriching photojournalism with context, backstory, related imagery, and ethical documentation. Built by @supersonic and TheTechMargin.",
-    url: "https://four-corners.thetechmargin.com",
-    siteName: "Four Corners Metadata Editor",
+      "Document a photograph with context, links, backstory, and authorship & ethics — then publish, share and export it.",
+    url: siteUrl(),
+    siteName: "Four Corners",
     locale: "en_US",
     type: "website",
     images: [
@@ -87,25 +75,16 @@ export const metadata: Metadata = {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "Four Corners Metadata Editor - Photojournalism with Context",
+        alt: "Four Corners — photography with context",
       },
     ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Four Corners Metadata Editor",
-    description:
-      "Digital tool for Fred Ritchin's Four Corners Project—enriching photojournalism with context, backstory, and transparency. By @supersonic & TheTechMargin.",
-    site: "@TheTechMargin",
-    creator: "@supersonic",
-    images: ["/opengraph-image"],
   },
   robots: {
     index: true,
     follow: true,
   },
   alternates: {
-    canonical: "https://four-corners.thetechmargin.com",
+    canonical: siteUrl(),
   },
 };
 
@@ -117,10 +96,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Preconnect to Supabase for faster image + data loads */}
-        {process.env.NEXT_PUBLIC_SUPABASE_URL && (
-          <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
-        )}
         {/* Blocking script: apply cached palette overrides before first paint
             to prevent flash of default theme colors */}
         <script
@@ -130,7 +105,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable} antialiased min-h-screen flex flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         {/* Skip-to-main link — visible on Tab focus, lets keyboard + screen-
             reader users jump past the global header straight into the editor. */}
@@ -142,40 +117,21 @@ export default function RootLayout({
         </a>
         <Suspense>
           <PersonaProvider />
-          <IssueReporterProvider />
         </Suspense>
         <ImageProtection />
         <HashAnchorSync />
         {/* Single app-wide auth/access source. The per-page header + project
             menu read from this instead of each running their own auth
-            subscription + admin-status cache. */}
+            subscription. */}
         <AccessProvider>
-          {/* Site-wide maintenance notice (super-admin controlled). Renders
-              nothing when disabled; when active it publishes --fc-banner-h so
-              the fixed header + content below shift down by exactly its height. */}
-          <MaintenanceBanner />
-          <div
-            className="flex-1"
-            style={{ paddingTop: "var(--fc-banner-h, 0px)" }}
-          >
-            {children}
-          </div>
+          <CapabilitiesProvider>
+            <div className="flex-1">{children}</div>
           {/* Floating help launcher — FAB on editor + dashboard; reads the
-              shared access context for auth/admin-gated entries. */}
-          <HelpLauncherProvider />
+              shared access context for auth-gated entries. */}
+            <HelpLauncherProvider />
+          </CapabilitiesProvider>
         </AccessProvider>
         <Footer />
-        <Analytics />
-        {/* Vercel's SpeedInsights powers the dashboard Real Experience Score
-            and log drains. WebVitalsReporter runs alongside, sending the same
-            CWV metrics to /api/vitals → Supabase speed_insights for our admin. */}
-        <SpeedInsights />
-        <WebVitalsReporter />
-        {/* PageViewReporter fires a lightweight pageview ingest on every client
-            navigation → /api/analytics/pageview → Supabase page_views table. */}
-        <Suspense>
-          <PageViewReporter />
-        </Suspense>
         <Toaster
           position="top-center"
           containerClassName="!z-[99999]"

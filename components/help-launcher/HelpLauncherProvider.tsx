@@ -25,7 +25,7 @@ const SEEN_KEY = "fc-help-launcher-seen";
 const WIDGET_ROUTES = new Set(["/", "/dashboard"]);
 
 export function HelpLauncherProvider() {
-  const { user, isAdmin } = useAccess();
+  const { user } = useAccess();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const autoOpenedRef = useRef(false);
@@ -77,7 +77,7 @@ export function HelpLauncherProvider() {
         </button>
       )}
       {open && (
-        <HelpLauncher isAuthed={isAuthed} isAdmin={isAdmin} onClose={close} />
+        <HelpLauncher isAuthed={isAuthed} onClose={close} />
       )}
     </>
   );

@@ -27,6 +27,7 @@ import {
   VoiceTranscriptionSchema,
 } from "../lib/field-registry";
 import { buildOpenAPISpec } from "../lib/openapi-spec";
+import { GENERATOR, siteUrl } from "../lib/attribution";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "app/docs/_data");
@@ -60,8 +61,8 @@ const EDITORIAL = {
   tagline:
     "An open standard for how images carry their story — shifting photographers into authors, and viewers into engaged readers.",
   gettingStarted: [
-    { n: 1, title: "Request an account", body: "Visit four-corners.thetechmargin.com and submit an access request. Four Corners is an invite-gated beta." },
-    { n: 2, title: "Receive a sign-in link", body: "After approval (usually within an hour) you'll get an email with a link to sign in." },
+    { n: 1, title: "Get an account", body: "Create an account from the sign-in dialog, or ask whoever runs this deployment for access." },
+    { n: 2, title: "Sign in", body: "Sign in with your email and password. Forgotten passwords are reset by email link." },
     { n: 3, title: "Land in the editor", body: "The editor is your home page after logging in — it's where you build a project." },
     { n: 4, title: "Upload an image or video", body: "Drop a file, upload, or pick from your library. The corner icons on the preview jump you to each section." },
     { n: 5, title: "Fill your corners", body: "Add as much or as little as you like across one or more corners — there is no minimum." },
@@ -97,33 +98,6 @@ const EDITORIAL = {
     { state: "Shared via link", published: true, inGallery: false, meaning: "Anyone with the share link can view; not listed in the public gallery." },
     { state: "Public gallery", published: true, inGallery: true, meaning: "Published and discoverable in the public gallery." },
   ],
-  // Hand-maintained release history, newest first. Bump this when cutting a
-  // release; `version` is intended to match a git release tag. (Tag-driven
-  // automation can replace this list later without changing the page.)
-  versionHistory: [
-    {
-      version: "Unreleased",
-      date: "2026-06-09",
-      summary: "In-app documentation & help",
-      changes: [
-        "Public /docs and complete, sign-in /docs/creator guides, generated from the field registry + API spec.",
-        "Help entry in the app menu; floating table of contents with shareable section anchors.",
-        "Admin-only documentation version history (this page).",
-      ],
-    },
-    {
-      version: "BETA.v1.1",
-      date: "2026-03-27",
-      summary: "Performance refinements",
-      changes: ["Performance pass across the editor and gallery (#35)."],
-    },
-    {
-      version: "BETA",
-      date: "2026-03-24",
-      summary: "Public beta",
-      changes: ["First tagged beta release."],
-    },
-  ] as { version: string; date: string; summary: string; changes: string[] }[],
   // Accessibility guide — user-facing, hand-written. Renders at /docs/accessibility.
   // Keep it plain-language; the technical reference lives in ACCESSIBILITY.md.
   accessibility: [
@@ -187,111 +161,11 @@ const EDITORIAL = {
       id: "reporting",
       title: "Reporting an accessibility barrier",
       items: [
-        "Use “Report an issue” in the app menu, or email sonia@thetechmargin.com.",
-        "Tell us the page, what you were trying to do, and the assistive technology or input method you were using.",
+        "Contact whoever runs this deployment, or open an issue in the project repository.",
+        "Say which page you were on, what you were trying to do, and the assistive technology or input method you were using.",
       ],
     },
   ] as { id: string; title: string; items: string[] }[],
-  // Admin guide — hand-written, renders at /docs/admin (admin-gated).
-  // One section per admin page (mirrors SECTION_GROUPS in app/admin/layout.tsx)
-  // plus the role model. Keep blurbs in sync with each page's header comment.
-  adminGuide: [
-    {
-      id: "overview",
-      title: "Overview (/admin)",
-      blurb:
-        "Compact rollup dashboard combining stats from every admin section — accounts, projects, content, traffic, and performance.",
-      items: [
-        "Use it as the landing page to spot anything unusual, then jump into the relevant section.",
-      ],
-    },
-    {
-      id: "analytics",
-      title: "Analytics",
-      blurb:
-        "Web analytics dashboard fed by the app's own page_views table — traffic by page, referrer, and time.",
-      items: ["First-party data only; no third-party analytics scripts."],
-    },
-    {
-      id: "performance",
-      title: "Performance",
-      blurb: "Core Web Vitals dashboard (LCP, CLS, INP, FCP, TTFB) from real visits.",
-      items: ["Use it to confirm regressions reported in tickets or after releases."],
-    },
-    {
-      id: "rate-limits",
-      title: "Rate Limits",
-      blurb:
-        "Request volume and violation metrics for the Supabase-backed sliding-window rate limiter.",
-      items: [
-        "Four tiers: ai (10/min), write (30/min), read (100/min), admin (30/min).",
-        "No PII — identifiers are truncated hashes.",
-        "The limiter fails open: if the check itself errors, requests pass through.",
-      ],
-    },
-    {
-      id: "content",
-      title: "Content",
-      blurb:
-        "Tag distribution, camera equipment, and a visibility/storage rollup of projects.",
-      items: [
-        "Visibility states: draft, shared via link (published), and public gallery (published + in gallery).",
-      ],
-    },
-    {
-      id: "users",
-      title: "Users",
-      blurb:
-        "All users as read-only cards; click one for a detail panel with non-PII rollups and admin actions.",
-      items: ["Role changes are super-admin only."],
-    },
-    {
-      id: "invites",
-      title: "Invites",
-      blurb:
-        "Review pending access requests, approve or deny them, or send a direct invite.",
-      items: [
-        "Approve generates a one-time signup link and emails it; Deny sends a polite decline.",
-        "Once approved: Resend re-emails the same link; Revoke cancels it (only before it's accepted).",
-        "“Invite someone” sends an approved invite directly, without a request.",
-        "User-facing responses are intentionally identical for new, duplicate, and already-registered emails — anti-enumeration.",
-      ],
-    },
-    {
-      id: "tickets",
-      title: "Tickets",
-      blurb:
-        "Issue reports submitted in-app. Reporters answer plain-language questions and pick a severity number (1–5); everything technical is captured automatically.",
-      items: [
-        "Auto-captured per ticket: app state, device, build, console errors, Core Web Vitals, the reporter's last actions (clicks, fields changed, navigation), and recent failed requests — plus an optional screenshot.",
-        "Severity (reporter-set, 1–5) derives the initial priority: 4–5 → High, 3 → Medium, 1–2 → Low. Super-admins can adjust priority afterwards.",
-        "Triage (super-admin): set status (open → triaged → in progress → resolved / won't fix / duplicate), reclassify the type, assign, leave a resolution note or internal comments.",
-        "Every change lands in the ticket's additive event thread; resolving a ticket deletes its private screenshot.",
-        "List view supports sorting by newest, severity, priority, or reporter, plus status, type, and minimum-severity filters.",
-      ],
-    },
-    {
-      id: "design",
-      title: "Design",
-      blurb: "Palette CRUD for persona colour schemes, with live preview.",
-      items: ["Palette changes apply at runtime via the --fc-* CSS variables."],
-    },
-    {
-      id: "settings",
-      title: "Settings",
-      blurb: "Global app settings and feature flags, each a labelled toggle.",
-      items: [
-        "Adding a new flag requires updating SETTINGS in the page, KNOWN_SETTINGS in the admin route, and PUBLIC_SETTINGS if it should be readable anonymously.",
-      ],
-    },
-    {
-      id: "changelog",
-      title: "Changelog",
-      blurb:
-        "Admin-only documentation and release version history at /docs/changelog.",
-      items: ["Maintained by hand in scripts/generate-docs.ts (EDITORIAL.versionHistory)."],
-    },
-  ] as { id: string; title: string; blurb: string; items: string[] }[],
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -381,7 +255,7 @@ const crossCutting = [
   { key: "voice", label: "Voice Notes & Transcription", note: EDITORIAL.crossCutting.voice, fields: schemaFields(VoiceTranscriptionSchema, ["text", "fieldId"]) },
 ];
 
-const spec = buildOpenAPISpec("https://four-corners.thetechmargin.com") as any;
+const spec = buildOpenAPISpec(siteUrl()) as any;
 const api = Object.entries(spec.paths as Record<string, any>).map(([path, ops]) => {
   const method = Object.keys(ops)[0];
   const op = ops[method];
@@ -395,15 +269,14 @@ const api = Object.entries(spec.paths as Record<string, any>).map(([path, ops]) 
 
 const docsData = {
   generatedAt: sourceDate(),
+  generator: GENERATOR,
   tagline: EDITORIAL.tagline,
-  apiInfo: { title: spec.info.title, version: spec.info.version, baseUrl: "https://four-corners.thetechmargin.com" },
+  apiInfo: { title: spec.info.title, version: spec.info.version, baseUrl: siteUrl() },
   gettingStarted: EDITORIAL.gettingStarted,
   corners,
   crossCutting,
   visibility: EDITORIAL.visibility,
-  versionHistory: EDITORIAL.versionHistory,
   accessibility: EDITORIAL.accessibility,
-  adminGuide: EDITORIAL.adminGuide,
   api,
 };
 
@@ -422,10 +295,8 @@ const ts =
   `export type DocApi = { path: string; method: string; summary: string; description: string; tags: string[] };\n` +
   `export type DocStep = { n: number; title: string; body: string };\n` +
   `export type DocVisibility = { state: string; published: boolean; inGallery: boolean; meaning: string };\n` +
-  `export type DocVersion = { version: string; date: string; summary: string; changes: string[] };\n` +
   `export type DocAccessibility = { id: string; title: string; items: string[] };\n` +
-  `export type DocAdminSection = { id: string; title: string; blurb: string; items: string[] };\n` +
-  `export type DocsData = {\n  generatedAt: string;\n  tagline: string;\n  apiInfo: { title: string; version: string; baseUrl: string };\n  gettingStarted: DocStep[];\n  corners: DocCorner[];\n  crossCutting: DocCross[];\n  visibility: DocVisibility[];\n  versionHistory: DocVersion[];\n  accessibility: DocAccessibility[];\n  adminGuide: DocAdminSection[];\n  api: DocApi[];\n};\n\n` +
+  `export type DocsData = {\n  generatedAt: string;\n  generator: string;\n  tagline: string;\n  apiInfo: { title: string; version: string; baseUrl: string };\n  gettingStarted: DocStep[];\n  corners: DocCorner[];\n  crossCutting: DocCross[];\n  visibility: DocVisibility[];\n  accessibility: DocAccessibility[];\n  api: DocApi[];\n};\n\n` +
   `export const docsData: DocsData = ${JSON.stringify(docsData, null, 2)} as const;\n`;
 
 writeFileSync(join(OUT_DIR, "docsData.ts"), ts);

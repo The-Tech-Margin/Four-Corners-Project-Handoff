@@ -52,7 +52,7 @@ export interface FCFullGalleryProps {
 
 /**
  * Get the best available media source URL for FULL-SIZE display.
- * Prioritise the Supabase public URL for the original upload,
+ * Prioritise the stored URL for the original upload,
  * then remote URLs, then thumbnails as last resort.
  * `src` is deprioritised — it is typically a local data-URL thumbnail
  * created during the add-image flow and should not be used in the
@@ -61,9 +61,9 @@ export interface FCFullGalleryProps {
 function getImageSrc(item: ContextItem | undefined): string {
   if (!item) return "";
   return (
-    item.storage_url ||           // Full-size Supabase public URL
+    item.storage_url ||           // Full-size storage public URL
     item.url ||                   // Remote URL (for url-sourced items)
-    item.thumbnail_storage_url || // Supabase thumbnail (better than data URL)
+    item.thumbnail_storage_url || // storage thumbnail (better than data URL)
     item.src ||                   // Local data URL fallback
     item.thumbnailDataUrl ||      // Base64 thumbnail last resort
     ""
@@ -322,7 +322,7 @@ export function FCFullGallery({
                     </div>
                   )
                 ) : src ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- lightbox: external Supabase URLs, fidelity-critical
+                  // eslint-disable-next-line @next/next/no-img-element -- lightbox: stored media, fidelity-critical
                   <img
                     src={src}
                     alt={currentItem.caption || `Image ${currentIndex + 1}`}

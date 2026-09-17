@@ -6,6 +6,7 @@
 
 import type { FourCornersMetadataExtended } from "../field-registry";
 import type { AssetRef } from "./types";
+import { GENERATOR } from "../attribution";
 
 function countByKind(assets: AssetRef[], kind: AssetRef["kind"]): number {
   return assets.filter((a) => a.kind === kind && a.status === "resolved").length;
@@ -69,9 +70,8 @@ anywhere, ~33% larger than the raw assets.`
 
 Reimporting:
 -----------
-Import this entire ZIP (or metadata.json alone) into the Four Corners
-Metadata Editor at https://four-corners.thetechmargin.com — all fields,
-media, audio, and voice recordings are restored 1:1.
+Import this entire ZIP (or metadata.json alone) into any Four Corners
+editor — all fields, media, audio, and voice recordings are restored 1:1.
 
 To publish:
 ----------
@@ -103,8 +103,7 @@ providing context about:
 
 Learn more: https://fourcornersproject.org
 
-Created with Four Corners Metadata Editor
-https://four-corners.thetechmargin.com
+${GENERATOR}
 `;
 
   return text;

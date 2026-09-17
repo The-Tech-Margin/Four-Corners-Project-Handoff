@@ -99,7 +99,7 @@ export default function GlobalError({
           Something went wrong
         </h1>
         <p style={{ fontSize: "1rem", color: "#888", margin: "0 0 8px", textAlign: "center", maxWidth: 440 }}>
-          The corners scattered. We're piecing them back together.
+          The corners scattered. We&apos;re piecing them back together.
         </p>
         {error.digest && (
           <p style={{ fontSize: "0.75rem", color: "#555", margin: "0 0 24px", fontFamily: "monospace" }}>
@@ -111,9 +111,11 @@ export default function GlobalError({
           <button className="ge-btn ge-btn--primary" onClick={reset}>
             Try again
           </button>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- the root layout failed; reload the document */}
           <a className="ge-btn ge-btn--secondary" href="/">
             Go Home
           </a>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- the root layout failed; reload the document */}
           <a className="ge-btn ge-btn--secondary" href="/gallery">
             Browse Gallery
           </a>

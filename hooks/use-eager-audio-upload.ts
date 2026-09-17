@@ -3,7 +3,7 @@
  *
  * Audio clips used to sit in the store as base64 `audioDataUrl` until the
  * Save button uploaded them all in one batch — which failed when several
- * clips were pending at once. This hook uploads each clip to Supabase
+ * clips were pending at once. This hook uploads each clip to storage
  * Storage the moment it's attached (record / upload / transcribe), patches
  * the store entry with the storage path/URL, and kicks off a background
  * save so the row persists without the user pressing Save.
@@ -15,9 +15,9 @@
 import { useCallback } from "react";
 import { useFourCornersStore } from "@/lib/store";
 import { useProjectSave } from "@/hooks/useProjectSave";
-import { uploadVoiceRecordingToSupabase } from "@/lib/supabase-voice-storage";
+import { uploadVoiceRecording } from "@/lib/api-client/media-upload";
+import { useAccess } from "@/components/access-provider";
 import { mediaStorage } from "@/lib/media-storage";
-import { createClient } from "@/lib/supabase/client";
 import type { FourCornersMetadataExtended } from "@/lib/schema";
 import { notify } from "@/lib/notify";
 
@@ -40,6 +40,7 @@ function metadataFromStore(): FourCornersMetadataExtended {
 
 export function useEagerAudioUpload() {
   const { save } = useProjectSave();
+  const { user } = useAccess();
 
   /**
    * Upload one transcription's audio immediately and persist in the
@@ -52,11 +53,6 @@ export function useEagerAudioUpload() {
       const { projectId } = store;
       if (!projectId) return; // unsaved project — deferred path covers it
 
-      const supabase = createClient();
-      if (!supabase) return;
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
       if (!user) return; // logged out — deferred path covers it
 
       const vt = useFourCornersStore
@@ -71,19 +67,15 @@ export function useEagerAudioUpload() {
           !!vt.audioDataUrl || typeof vt.audioBlobId === "number";
         if (!hasLocalAudio) return;
 
-        const result = await uploadVoiceRecordingToSupabase(
-          vt,
-          user.id,
-          projectId,
-        );
+        const result = await uploadVoiceRecording(vt, projectId);
         if (!result.success) {
           // Keep audioDataUrl/audioBlobId so the Save button retries.
           notify.error("Audio upload failed — it will retry when you save");
           return;
         }
 
-        // The audio now lives in Supabase: free the IDB blob and drop the
-        // in-memory data URL, mirroring useProjectSave's post-upload patch.
+        // The audio is stored now: free the IDB blob and drop the in-memory
+        // data URL, mirroring useProjectSave's post-upload patch.
         if (typeof vt.audioBlobId === "number") {
           try {
             await mediaStorage.delete(vt.audioBlobId);

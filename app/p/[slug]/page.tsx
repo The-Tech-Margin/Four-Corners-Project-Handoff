@@ -1,33 +1,36 @@
+/**
+ * /p/<slug> — the share link. Sends the visitor to the editor with the
+ * project loaded, or back with a reason it could not be opened.
+ *
+ * `redirect()` throws to do its work, so it is never called inside a try.
+ *
+ * @author TheTechMargin
+ * @copyright 2026 TheTechMargin
+ */
+
 import { redirect } from "next/navigation";
-import { getProjectBySlug } from "@/lib/db/projects";
+import { getServices } from "@/lib/adapters";
+import { encodeProjectId } from "@/lib/encode-id";
 
 interface PageProps {
-  params: Promise<{
-    slug: string;
-  }>;
+  params: Promise<{ slug: string }>;
 }
 
 export default async function PublicProjectPage({ params }: PageProps) {
   const { slug } = await params;
 
+  let destination = "/?error=not-found";
   try {
-    // Try to fetch the project by slug
-    const project = await getProjectBySlug(slug);
-
-    if (!project) {
-      // Slug doesn't exist
-      redirect("/?error=not-found");
-    }
-
-    if (!project.published) {
-      // Project exists but is not published
-      redirect("/?error=not-public");
-    }
-
-    // Redirect to main page with file parameter to load the shared project
-    redirect(`/?file=${slug}`);
+    const project = await getServices().projects.getBySlug(slug);
+    if (!project) destination = "/?error=not-found";
+    else if (!project.published) destination = "/?error=not-public";
+    // The editor expects the encoded id: a raw slug with dashes decodes to
+    // nonsense.
+    else destination = `/?file=${encodeProjectId(project.id)}`;
   } catch (error) {
-    console.error("Error loading public project:", error);
-    redirect("/?error=load-failed");
+    console.error("Could not load the shared project:", error);
+    destination = "/?error=load-failed";
   }
+
+  redirect(destination);
 }

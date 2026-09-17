@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useFourCornersStore } from "@/lib/store";
-import { reverseGeocode } from "@/utils/reverseGeocode";
+import { reverseGeocode } from "@/lib/api-client/geocode";
 import type { LocationData } from "@/lib/field-registry";
 
 export function LocationCapture() {
@@ -62,10 +62,10 @@ export function LocationCapture() {
         updateLocation({
           latitude,
           longitude,
-          city: geocoded.city,
-          state: geocoded.state,
-          country: geocoded.country,
-          formattedLocation: geocoded.formattedLocation,
+          city: geocoded?.city ?? "",
+          state: geocoded?.state ?? "",
+          country: geocoded?.country ?? "",
+          formattedLocation: geocoded?.formattedLocation ?? "",
           capturedAt: new Date().toISOString(),
           source: "device",
         });
@@ -121,10 +121,10 @@ export function LocationCapture() {
     updateLocation({
       latitude: lat,
       longitude: lon,
-      city: geocoded.city,
-      state: geocoded.state,
-      country: geocoded.country,
-      formattedLocation: geocoded.formattedLocation,
+      city: geocoded?.city ?? "",
+      state: geocoded?.state ?? "",
+      country: geocoded?.country ?? "",
+      formattedLocation: geocoded?.formattedLocation ?? "",
       capturedAt: new Date().toISOString(),
       source: "manual",
     });
@@ -459,7 +459,7 @@ export function LocationCapture() {
               Exclude location from export
             </span>
             <p className="text-xs text-gray-600 mt-0.5">
-              Keep location for your records but don't include in published
+              Keep location for your records but don&apos;t include in published
               metadata
             </p>
           </div>

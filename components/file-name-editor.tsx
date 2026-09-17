@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useFourCornersStore } from "@/lib/store";
-import { updateProjectSlug } from "@/lib/db/projects";
+import { updateProjectSlug } from "@/lib/api-client/project-actions";
 import { notifyFile } from "@/lib/notify";
 import { VoiceInput } from "@/components/voice-input";
 

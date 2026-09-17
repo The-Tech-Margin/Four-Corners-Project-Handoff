@@ -5,8 +5,14 @@
  */
 
 import { describe, it, expect } from "vitest";
+import type {
+  BackStory,
+  CodeOfEthics,
+  CreativeCommons,
+  PhotographerInfo,
+} from "@/lib/field-registry";
 import { transformToCanvasDocument } from "@/app/explore/[slug]/components/transform";
-import type { ProjectRecord } from "@/lib/db/projects";
+import type { ProjectRecord } from "@/lib/projects/types";
 
 function makeProject(overrides: Partial<ProjectRecord["metadata"]> = {}): ProjectRecord {
   return {
@@ -64,10 +70,10 @@ describe("transformToCanvasDocument", () => {
         makeProject({
           context: [],
           links: [],
-          backStory: {} as any,
-          photographerInfo: {} as any,
-          ethics: {} as any,
-          creativeCommons: {} as any,
+          backStory: {} as unknown as BackStory,
+          photographerInfo: {} as unknown as PhotographerInfo,
+          ethics: {} as unknown as CodeOfEthics,
+          creativeCommons: {} as unknown as CreativeCommons,
           location: undefined,
           photoMetadata: undefined,
           voiceTranscriptions: [],

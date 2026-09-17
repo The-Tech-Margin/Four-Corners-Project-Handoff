@@ -28,14 +28,12 @@ import {
 const SCOPE: Record<DocsPage, DocsPage[]> = {
   "/docs": ["/docs", "/docs/accessibility"],
   "/docs/creator": ["/docs/creator", "/docs/accessibility"],
-  "/docs/admin": ["/docs/admin", "/docs/creator", "/docs/accessibility"],
   "/docs/accessibility": ["/docs/accessibility"],
 };
 
 const PAGE_LABEL: Record<DocsPage, string> = {
   "/docs": "Docs",
   "/docs/creator": "Creator guide",
-  "/docs/admin": "Admin guide",
   "/docs/accessibility": "Accessibility",
 };
 

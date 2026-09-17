@@ -3,87 +3,30 @@
 import { useState, useCallback } from "react";
 import { notify } from "@/lib/notify";
 import { getAudioFormat } from "@/lib/audio-utils";
+import { upload } from "@/lib/api-client/storage";
 
-interface UseAIGatewayOptions {
-  model?: string;
-  maxTokens?: number;
-}
+// Recordings above this size are staged in storage and transcribed by key,
+// so a large upload never has to fit in one request body.
+const DIRECT_UPLOAD_LIMIT = 4 * 1024 * 1024; // 4 MB
 
-interface GenerateTextOptions {
-  prompt: string;
-  systemPrompt?: string;
-}
-
-// Vercel serverless functions have a 4.5 MB request body limit.
-// Files larger than this threshold are uploaded to Supabase Storage first
-// and transcribed via a storage-path reference instead.
-const DIRECT_UPLOAD_LIMIT = 4 * 1024 * 1024; // 4 MB (leave headroom)
-
-export function useAIGateway(options: UseAIGatewayOptions = {}) {
+export function useAIGateway() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateText = useCallback(
-    async ({ prompt, systemPrompt }: GenerateTextOptions): Promise<string> => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch("/api/ai/generate", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt,
-            systemPrompt,
-            model: options.model,
-            maxTokens: options.maxTokens,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to generate text");
-        }
-
-        const data = await response.json();
-        return data.text;
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to generate text";
-        setError(errorMessage);
-        throw err;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [options.model, options.maxTokens]
-  );
-
   /**
-   * Upload a large audio blob to Supabase Storage for server-side processing.
-   * Returns the storage path (to be passed to the transcribe API).
+   * Stage a large recording so the server can read it, and return the key
+   * the transcription route accepts. The route deletes it afterwards.
    */
   const uploadToTempStorage = useCallback(
     async (blob: Blob, mimeType: string): Promise<string> => {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      if (!supabase) throw new Error("Storage not available — please sign in");
-
-      // RLS requires the first folder to be the user's UID
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Please sign in to upload audio files.");
-
-      const ext = mimeType.split("/")[1]?.split(";")[0] || "webm";
-      const path = `${user.id}/temp-transcribe/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-      const { error } = await supabase.storage
-        .from("voice-recordings")
-        .upload(path, blob, { contentType: mimeType, upsert: false });
-
-      if (error) throw new Error(`Upload failed: ${error.message}`);
-      return path;
+      const { extension } = getAudioFormat(mimeType);
+      const result = await upload({
+        purpose: "transcribe-source",
+        blob,
+        fileName: `audio.${extension}`,
+        itemId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      });
+      return result.key;
     },
     []
   );
@@ -127,13 +70,13 @@ export function useAIGateway(options: UseAIGatewayOptions = {}) {
               signal: controller.signal,
             });
           } else {
-            // ── Large file: upload to Supabase Storage, send path ──
+            // ── Large file: upload to storage, send path ──
             // Show progress toast for large uploads
             loadingToastId = notify.loading(
               `Uploading ${sizeMB}MB audio file...`
             );
 
-            const storagePath = await uploadToTempStorage(audioBlob, effectiveMime);
+            const key = await uploadToTempStorage(audioBlob, effectiveMime);
 
             // Update toast to transcribing phase
             notify.dismiss(loadingToastId);
@@ -142,7 +85,7 @@ export function useAIGateway(options: UseAIGatewayOptions = {}) {
             response = await fetch("/api/ai/transcribe", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ storagePath, mimeType: effectiveMime }),
+              body: JSON.stringify({ key, mimeType: effectiveMime }),
               signal: controller.signal,
             });
           }
@@ -220,51 +163,8 @@ export function useAIGateway(options: UseAIGatewayOptions = {}) {
     [uploadToTempStorage]
   );
 
-  const analyzeImage = useCallback(
-    async (
-      imageDataUrl: string,
-      prompt?: string,
-      context?: string
-    ): Promise<string> => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch("/api/ai/analyze-image", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            imageDataUrl,
-            prompt,
-            context,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to analyze image");
-        }
-
-        const data = await response.json();
-        return data.description;
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to analyze image";
-        setError(errorMessage);
-        throw err;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    []
-  );
-
   return {
-    generateText,
     transcribeAudio,
-    analyzeImage,
     isLoading,
     error,
   };

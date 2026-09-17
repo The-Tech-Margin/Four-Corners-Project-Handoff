@@ -10,6 +10,7 @@
  * Isomorphic: browser, worker, and Node tests (deps injectable).
  */
 
+import { blobUrl, parseAppBlobUrl } from "@/lib/storage/blob-url";
 import type {
   AssetRef,
   ExportOptions,
@@ -144,9 +145,8 @@ interface Candidate {
   load: () => Promise<{ blob: Blob; mimeType?: string } | null>;
 }
 
-function supabasePublicUrl(path: string): string | null {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  return base ? `${base}/storage/v1/object/public/context-media/${path}` : null;
+function publicMediaUrl(key: string): string | null {
+  return key ? blobUrl("context-media", key) : null;
 }
 
 function isVoiceStoragePath(pathOrBucketHint: string): "voice-recordings" | "context-media" {
@@ -234,7 +234,7 @@ export async function resolveAssets(
       });
     }
     if (mainImage.storagePath) {
-      const url = supabasePublicUrl(mainImage.storagePath);
+      const url = publicMediaUrl(mainImage.storagePath);
       if (url) {
         candidates.push({
           origin: "storage-url",
@@ -290,7 +290,7 @@ export async function resolveAssets(
       });
     }
     if (mainImage.thumbnailPath) {
-      const url = supabasePublicUrl(mainImage.thumbnailPath);
+      const url = publicMediaUrl(mainImage.thumbnailPath);
       if (url) {
         candidates.push({
           origin: "storage-url",
@@ -657,17 +657,12 @@ export async function resolveAssets(
           load: () => fetchAsBlob(deps.fetchFn, consentUrl),
         },
       ];
-      const pathMatch = consentUrl.match(
-        /\/storage\/v1\/object\/(?:sign|public)\/consent-documents\/([^?]+)/,
-      );
-      if (pathMatch) {
+      const parsed = parseAppBlobUrl(consentUrl);
+      if (parsed) {
         candidates.push({
           origin: "signed-url",
           load: async () => {
-            const url = await deps.signStoragePath(
-              "consent-documents",
-              decodeURIComponent(pathMatch[1]),
-            );
+            const url = await deps.signStoragePath(parsed.bucket, parsed.key);
             return url ? fetchAsBlob(deps.fetchFn, url) : null;
           },
         });

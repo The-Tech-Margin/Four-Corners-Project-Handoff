@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { ProjectRecord } from "@/lib/db/projects";
-import { createClient } from "@/lib/supabase/client";
+import type { ProjectRecord } from "@/lib/projects/types";
 import { AppHeader } from "@/components/app-header";
 import { LoadingOverlay } from "@/components/loading-overlay";
 import Link from "next/link";
@@ -13,6 +12,7 @@ import { FCProjectList } from "@/components/shared/fc-project-list";
 import { Search, X, Loader2 } from "lucide-react";
 import { displayTag } from "@/lib/tags";
 import { notifyClipboard } from "@/lib/notify";
+import { useAccess } from "@/components/access-provider";
 import {
   FCViewControls,
   type ViewMode,
@@ -218,25 +218,11 @@ function GalleryPageInner() {
     }
   }, []);
 
-  // Check auth state — run once on mount
+  // Auth comes from the app-wide provider — no second subscription here.
+  const { user } = useAccess();
   useEffect(() => {
-    const supabase = createClient();
-    if (!supabase) return;
-
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      setIsLoggedIn(!!data.session?.user);
-    };
-    checkAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: string, session: { user?: { id: string } } | null) => {
-      setIsLoggedIn(!!session?.user);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    setIsLoggedIn(!!user);
+  }, [user]);
 
   // Responsive columns — only update state when column count truly changes
   // to avoid re-rendering the masonry grid when mobile browser chrome hides/shows

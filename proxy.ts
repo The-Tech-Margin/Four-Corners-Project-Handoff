@@ -1,51 +1,49 @@
 /**
- * API proxy — rate limiting + auth protection.
+ * Request proxy (Next 16's middleware file).
  *
- * Next.js 16 uses proxy.ts instead of middleware.ts.
- * Rate limiting is Supabase-backed (sliding window via RPC).
- * Fail-open: if the rate-limit check fails, requests proceed.
+ *  1. Rate-limits /api/* by tier, identifying the caller by verified session
+ *     cookie where there is one, otherwise by IP. The public API's optional
+ *     Bearer key unlocks the higher tier.
+ *  2. Sends signed-out visitors from the editor and dashboard to the gallery.
+ *
+ * It never touches the data store: Next runs this file in its own module
+ * graph, and a page gate does not need one.
  *
  * @author TheTechMargin
  * @copyright 2025 TheTechMargin
  */
 
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { DEV_AUTH_COOKIE, isDevAuthEnabled } from "@/lib/dev-auth";
+import { NextResponse, type NextRequest } from "next/server";
+import { peekSessionUserId } from "@/lib/adapters/proxy-runtime";
+import { SESSION_COOKIE } from "@/lib/ports/auth";
 import {
+  checkRateLimit,
   classifyRoute,
   extractIdentifier,
-  checkRateLimit,
-  resolvePublicApiRateLimit,
   RATE_LIMIT_TIERS,
+  resolvePublicApiRateLimit,
   type RateLimitTier,
 } from "@/lib/rate-limit";
-import { getSupabasePublicKey } from "@/lib/supabase/public-key";
 
-/**
- * Run the rate-limit check for a resolved identifier/tier and translate
- * the result into either a 429 or a pass-through with quota headers.
- */
 async function applyRateLimit(
   identifier: string,
   tier: RateLimitTier,
   pathname: string,
   method: string,
-) {
+): Promise<NextResponse> {
   const result = await checkRateLimit(identifier, tier, pathname, method);
 
   if (!result.allowed) {
-    const retryAfter = Math.ceil(
-      (new Date(result.resetAt).getTime() - Date.now()) / 1000,
+    const retryAfter = Math.max(
+      1,
+      Math.ceil((new Date(result.resetAt).getTime() - Date.now()) / 1000),
     );
-
     return NextResponse.json(
-      { error: "Too many requests. Please try again later." },
+      { error: "Too many requests", retryAfter },
       {
         status: 429,
         headers: {
-          "Retry-After": String(Math.max(1, retryAfter)),
+          "Retry-After": String(retryAfter),
           "X-RateLimit-Limit": String(result.limit),
           "X-RateLimit-Remaining": "0",
           "X-RateLimit-Reset": result.resetAt,
@@ -65,83 +63,37 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method;
 
-  // ── Defense in depth: block dev-auth in production ──────────────
-  if (pathname === "/api/dev-auth" && process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  // ── Rate limiting for API routes ───────────────────────────────
-  // Gallery is public, read-only, and CDN-cached — skip the Supabase
-  // RPC round-trip so cached responses return in <5ms instead of 200-500ms.
-  if (pathname === "/api/gallery") {
-    return NextResponse.next();
-  }
-
   if (pathname.startsWith("/api/")) {
-    // Public gallery API: optional Bearer key unlocks a higher tier.
-    // Anonymous callers are still served, just at the lower per-IP tier.
+    // The gallery feed is public, read-only and cached — skip the counter.
+    if (pathname === "/api/gallery") return NextResponse.next();
+
     if (pathname.startsWith("/api/public/")) {
       const { tier, identifier } = await resolvePublicApiRateLimit(request);
       return applyRateLimit(identifier, tier, pathname, method);
     }
 
     const tier = classifyRoute(pathname, method);
-
     if (tier) {
-      const config = RATE_LIMIT_TIERS[tier];
-      const identifier = await extractIdentifier(request, config.identifierType);
-
-      if (identifier) {
-        return applyRateLimit(identifier, tier, pathname, method);
-      }
+      const identifier = await extractIdentifier(
+        request,
+        RATE_LIMIT_TIERS[tier].identifierType,
+      );
+      if (identifier) return applyRateLimit(identifier, tier, pathname, method);
     }
 
-    // Exempt route or can't identify — pass through
     return NextResponse.next();
   }
 
-  // ── Protect authenticated routes ───────────────────────────────
-  const protectedPaths = ["/", "/dashboard", "/settings"];
-  const protectedPrefixes = ["/admin"];
-  const isProtected =
-    protectedPaths.includes(pathname) ||
-    protectedPrefixes.some((p) => pathname.startsWith(p));
+  const protectedPaths = ["/", "/dashboard"];
+  // A share link lands on "/" with a file to open, and the viewer may be
+  // signed out — that is the point of a share link.
+  const isSharedLink =
+    pathname === "/" &&
+    (request.nextUrl.searchParams.has("file") || request.nextUrl.searchParams.has("project"));
 
-  if (isProtected) {
-    // Dev auth bypass — skip Supabase check (double-gated)
-    if (
-      isDevAuthEnabled() &&
-      request.cookies.get(DEV_AUTH_COOKIE)?.value === "true"
-    ) {
-      return NextResponse.next();
-    }
-
-    const response = NextResponse.next();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      getSupabasePublicKey()!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options),
-            );
-          },
-        },
-      },
-    );
-
-    const result = await supabase.auth.getUser();
-    const user = result.data?.user;
-
-    if (!user) {
-      return NextResponse.redirect(new URL("/gallery", request.url));
-    }
-
-    return response;
+  if (protectedPaths.includes(pathname) && !isSharedLink) {
+    const signedIn = peekSessionUserId(request.cookies.get(SESSION_COOKIE)?.value);
+    if (!signedIn) return NextResponse.redirect(new URL("/gallery", request.url));
   }
 
   return NextResponse.next();
@@ -149,8 +101,13 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/api/:path*",
-    // Exclude specific paths that don't need rate limiting
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    /*
+     * Everything except:
+     *  - uploads and transcription (Next buffers a proxied body at 10 MB,
+     *    which would truncate a large image, video or recording),
+     *  - the blob route, which is hot and already checks access itself,
+     *  - static assets.
+     */
+    "/((?!api/storage/upload|api/ai/transcribe|api/blobs|_next/static|_next/image|favicon.ico).*)",
   ],
 };

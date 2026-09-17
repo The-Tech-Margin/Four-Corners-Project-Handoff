@@ -1,19 +1,13 @@
 #!/bin/sh
 #
-# Pre-commit hook (version-controlled via husky):
-# 1. Lints staged .ts/.tsx files (always, fast)
-# 2. Regenerates TYPES.md + runs schema-drift tests if schema files changed
-# 3. Regenerates app/docs/_data if docs source-of-truth inputs changed
+# Pre-commit:
+#   1. Lints staged .ts/.tsx files.
+#   2. Regenerates the JSON Schemas when the model changes, and re-stages them.
+#   3. Regenerates the in-app docs data when its sources change.
 #
-# Generated artifacts (TYPES.md, app/docs/_data) are auto-regenerated and
-# re-staged so they never drift from their sources. The docs trigger set
-# mirrors the inputs of .github/workflows/docs.yml — generate-docs derives
-# its output from the field registry + OpenAPI spec + the generator's own
-# editorial copy, NOT from component/UI files, so only those paths matter.
-#
-# Husky runs this with `sh -e`, so every command must either be guarded by a
-# conditional or `|| true` — an un-guarded non-zero (e.g. a grep with no match)
-# would otherwise abort the commit.
+# Husky runs this with `sh -e`, so every command is either guarded by a
+# conditional or ends with `|| true` — an unguarded non-zero (a grep with no
+# match, say) would abort the commit.
 
 STAGED=$(git diff --cached --name-only || true)
 STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM \
@@ -23,7 +17,7 @@ STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM \
 
 if [ -n "$STAGED_TS" ]; then
   echo "Linting staged files..."
-  if ! printf '%s\n' "$STAGED_TS" | xargs npx eslint; then
+  if ! printf '%s\n' "$STAGED_TS" | xargs npx eslint --no-warn-ignored; then
     echo ""
     echo "LINT FAILED — fix errors before committing."
     exit 1
@@ -31,26 +25,22 @@ if [ -n "$STAGED_TS" ]; then
   echo "Lint passed."
 fi
 
-# ── 2. Schema change → regenerate TYPES.md + schema-drift test ───────────────
+# ── 2. Model change → regenerate schema/ and run the model checks ────────────
 
-if printf '%s\n' "$STAGED" | grep -qE '(field-registry|projects-transforms|reconstruct-metadata|context-items|test-factory)\.ts$'; then
-  echo "Schema files changed — running data model checks..."
-
-  echo "Regenerating TYPES.md..."
-  if ! npx tsx scripts/generate-types-doc.ts; then
-    echo "ERROR: TYPES.md generation failed"
+if printf '%s\n' "$STAGED" | grep -qE '(lib/field-registry|lib/export-contract|lib/schema|lib/test-factory|scripts/generate-schema)\.ts$'; then
+  echo "Model files changed — regenerating JSON Schemas..."
+  if ! npm run generate:schema; then
+    echo "ERROR: schema generation failed"
     exit 1
   fi
-  if ! git diff --quiet TYPES.md 2>/dev/null; then
-    git add TYPES.md
-    echo "TYPES.md updated and staged."
+  if ! git diff --quiet schema 2>/dev/null; then
+    git add schema
+    echo "schema/ updated and staged."
   fi
 
-  echo "Running schema-drift tests..."
-  if ! npx vitest run __tests__/schema-drift.test.ts --reporter=dot; then
+  if ! npx vitest run __tests__/schema-drift.test.ts __tests__/schema-json.test.ts --reporter=dot; then
     echo ""
     echo "SCHEMA DRIFT DETECTED — fix mismatches before committing."
-    echo "Run: npm run test:schema"
     exit 1
   fi
 fi

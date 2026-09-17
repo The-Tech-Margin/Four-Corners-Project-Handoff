@@ -166,7 +166,7 @@ export function InteractiveImagePreview({
             fillParent
           />
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element -- editor preview, external Supabase URLs
+          // eslint-disable-next-line @next/next/no-img-element -- editor preview, stored media
           <img
             src={imageSrc}
             alt={creativeCommons.description || "Four Corners image preview"}

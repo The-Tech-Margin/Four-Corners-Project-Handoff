@@ -3,14 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { ProjectMenu } from "./project-menu";
 import { ThemeToggle } from "./theme-toggle";
 import { ShareModal } from "./share-modal";
 import { AuthModal } from "./auth-modal";
 import { SlugInputModal } from "./slug-input-modal";
 import { useFourCornersStore } from "@/lib/store";
-import { togglePublish, toggleGallery } from "@/lib/db/projects";
+import { togglePublish, toggleGallery } from "@/lib/api-client/project-actions";
 import { useProjectMetadata } from "@/hooks/useProjectMetadata";
 import { useProjectSave } from "@/hooks/useProjectSave";
 import { notifySave, notifyFile } from "@/lib/notify";
@@ -47,11 +46,10 @@ export function AppHeader({
   viewActions,
 }: AppHeaderProps) {
   const router = useRouter();
-  const supabase = createClient();
   // Auth comes from the single app-wide AccessProvider (mounted at the layout
   // root); per-page chrome (editor save button, view actions) still arrives via
   // props, so intentionally chrome-less routes stay chrome-less.
-  const { user } = useAccess();
+  const { user, signOut } = useAccess();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -180,9 +178,7 @@ export function AppHeader({
   };
 
   const handleSignOut = async () => {
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    // The AccessProvider's auth subscription clears the user on SIGNED_OUT.
+    await signOut();
     setShowUserMenu(false);
     router.push("/gallery");
   };

@@ -10,6 +10,7 @@
  * - Guaranteed sync between Four Corners and IIIF schemas
  */
 
+import { CURRENT_EXPORT_VERSION } from "./export-contract";
 import type { FourCornersMetadataExtended } from "./field-registry";
 import { FIELD_INDEX } from "./field-registry";
 import {
@@ -440,9 +441,10 @@ export function generateIIIFManifest(
     {
       id: "./metadata.json",
       type: "Dataset",
-      label: toIIIFLanguageMap("Four Corners Metadata"),
+      label: toIIIFLanguageMap("Four Corners metadata"),
       format: "application/json",
-      profile: "https://fourcornersproject.org/schema/1.0",
+      // This model's own identifier — see schema/export-bundle.schema.json.
+      profile: `urn:four-corners:export-bundle:${CURRENT_EXPORT_VERSION}`,
     },
   ];
 
@@ -490,7 +492,7 @@ export function generateIIIFManifest(
   }
 
   // Voice note transcripts. Audio is referenced by relative path only
-  // (security: never expose Supabase URLs in exports); duplicate texts
+  // (security: never expose storage URLs in exports); duplicate texts
   // (e.g. a transcript already exported as the backstory) are skipped.
   const exportedTexts = new Set(
     state.backStory?.text ? [state.backStory.text.trim()] : [],

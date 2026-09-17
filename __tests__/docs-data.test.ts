@@ -20,8 +20,6 @@ import {
 } from "@/lib/field-registry";
 import { buildOpenAPISpec } from "@/lib/openapi-spec";
 
-const PROD_BASE_URL = "https://four-corners.thetechmargin.com";
-
 /** Field `path`s registered against a given uiSection, in registry order. */
 const pathsForSection = (section: string) =>
   Object.values(FIELD_REGISTRY)
@@ -88,7 +86,7 @@ describe("docs builder output (app/docs/_data/docsData)", () => {
   });
 
   it("mirrors the OpenAPI spec in the API table", () => {
-    const spec = buildOpenAPISpec(PROD_BASE_URL);
+    const spec = buildOpenAPISpec(docsData.apiInfo.baseUrl);
     expect(docsData.api.map((a) => a.path)).toEqual(Object.keys(spec.paths));
     expect(docsData.api.length).toBeGreaterThan(0);
     for (const route of docsData.api) {
@@ -97,25 +95,20 @@ describe("docs builder output (app/docs/_data/docsData)", () => {
     }
   });
 
-  it("carries a deterministic source date and the production base URL", () => {
+  it("carries a deterministic source date and a deployment-neutral base URL", () => {
     // generatedAt is a stable YYYY-MM-DD (git commit date), never a wall clock,
     // so regeneration is reproducible and the freshness check doesn't churn.
     expect(docsData.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(docsData.apiInfo.baseUrl).toBe(PROD_BASE_URL);
+    expect(() => new URL(docsData.apiInfo.baseUrl)).not.toThrow();
+    expect(docsData.apiInfo.baseUrl).not.toMatch(/thetechmargin|vercel\.app/);
   });
 
-  it("carries a non-empty, well-formed version history (newest first)", () => {
-    expect(docsData.versionHistory.length).toBeGreaterThan(0);
-    for (const v of docsData.versionHistory) {
-      expect(v.version).toBeTruthy();
-      expect(v.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(v.summary).toBeTruthy();
-      expect(Array.isArray(v.changes)).toBe(true);
-      expect(v.changes.length).toBeGreaterThan(0);
-    }
-    // Dates are sorted descending (newest first).
-    const dates = docsData.versionHistory.map((v) => v.date);
-    expect([...dates].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0))).toEqual(dates);
+  it("carries the system attribution without rendering it anywhere", () => {
+    expect(docsData.generator).toContain("TheTechMargin");
+  });
+
+  it("indexes no admin-only pages", () => {
+    expect(JSON.stringify(docsData)).not.toContain("/docs/admin");
   });
 
   it("includes onboarding steps and the visibility-state model", () => {

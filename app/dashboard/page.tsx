@@ -1,41 +1,24 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
 import { DashboardClient } from "./dashboard-client";
-import { DEV_AUTH_COOKIE, DEV_USER, isDevAuthEnabled } from "@/lib/dev-auth";
+import { getServerUser } from "@/lib/server/session";
+import { getQuota } from "@/lib/server/quota";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  // Dev auth bypass
-  const cookieStore = await cookies();
-  const isDevAuth =
-    isDevAuthEnabled() &&
-    cookieStore.get(DEV_AUTH_COOKIE)?.value === "true";
+  const user = await getServerUser();
+  if (!user) redirect("/?auth=required");
 
-  let userEmail: string;
-
-  if (isDevAuth) {
-    userEmail = DEV_USER.email;
-  } else {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      redirect("/?auth=required");
-    }
-
-    userEmail = user.email || "";
-  }
+  const userEmail = user.email;
+  const quota = await getQuota(user.id);
 
   // Pass only auth info — projects are fetched client-side to avoid RSC serialization issues
   return (
     <DashboardClient
       projects={[]}
-      storageUsed={0}
-      storageLimit={100 * 1024 * 1024}
+      storageUsed={quota.used}
+      storageLimit={quota.limit}
+      plan={quota.plan}
       userEmail={userEmail}
     />
   );
