@@ -1,0 +1,355 @@
+/* Four Corners — /docs presentational styles.
+   Scoped CSS module: only loads on /docs pages. No global overrides except the
+   print rules below (which only apply when printing a docs page). */
+
+.wrap {
+  width: 100%;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.kicker {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fc-accent);
+}
+
+.lede {
+  color: var(--fc-text-secondary);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  max-width: 42rem;
+}
+
+.rule {
+  height: 1px;
+  background: var(--fc-border);
+  border: 0;
+  margin: 1.5rem 0;
+}
+
+/* corner diagram */
+.diagram {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  max-width: 34rem;
+}
+.diagramCell {
+  border: 1px solid var(--cell);
+  border-left: 3px solid var(--cell);
+  border-radius: var(--radius, 9px);
+  background: color-mix(in srgb, var(--cell) 8%, var(--fc-surface));
+  padding: 0.85rem 0.95rem;
+  min-height: 4.5rem;
+}
+.diagramGlyph { color: var(--cell); font-size: 1.1rem; line-height: 1; }
+.diagramLabel { color: var(--fc-text); font-weight: 700; font-size: 0.95rem; }
+.diagramPos { color: var(--fc-text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* corner / feature cards */
+.card {
+  border: 1px solid var(--fc-border);
+  border-left: 3px solid var(--accent, var(--fc-border));
+  border-radius: var(--radius, 9px);
+  background: var(--fc-surface);
+  padding: 1rem 1.1rem 1.1rem;
+  margin: 0.75rem 0;
+  scroll-margin-top: 5rem; /* corner/cross cards are anchor targets too */
+}
+.cardHead { display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; }
+.badge {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fc-accent-on);
+  background: var(--accent, var(--fc-text-muted));
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+}
+.cardTitle { color: var(--fc-text); font-weight: 700; font-size: 1.05rem; }
+.cardSub { color: var(--fc-text-muted); font-size: 0.85rem; }
+.cardBody { color: var(--fc-text-secondary); font-size: 0.92rem; line-height: 1.55; margin-top: 0.5rem; }
+.why { color: var(--fc-text-muted); font-size: 0.85rem; font-style: italic; margin-top: 0.4rem; }
+.note { color: var(--fc-text-muted); font-size: 0.82rem; margin-top: 0.5rem; }
+
+/* tables */
+.table { width: 100%; border-collapse: collapse; margin-top: 0.7rem; font-size: 0.85rem; }
+.table th {
+  text-align: left;
+  color: var(--fc-text-muted);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--fc-border);
+  padding: 0.35rem 0.5rem;
+}
+.table td {
+  color: var(--fc-text-secondary);
+  border-bottom: 1px solid var(--fc-border-subtle);
+  padding: 0.4rem 0.5rem;
+  vertical-align: top;
+}
+.req { color: var(--fc-accent); font-weight: 700; }
+.mono { font-family: var(--font-geist-mono, monospace); font-size: 0.8rem; color: var(--fc-text); }
+.method {
+  font-family: var(--font-geist-mono, monospace);
+  font-size: 0.7rem; font-weight: 700;
+  color: var(--fc-accent); margin-right: 0.4rem;
+}
+
+/* steps */
+.steps { list-style: none; margin: 0; padding: 0; }
+.step { display: flex; gap: 0.9rem; padding: 0.7rem 0; border-bottom: 1px solid var(--fc-border-subtle); }
+.stepNum {
+  flex: 0 0 1.9rem; height: 1.9rem; border-radius: 999px;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--fc-accent) 15%, var(--fc-surface));
+  color: var(--fc-accent); font-weight: 700; font-size: 0.9rem;
+}
+.stepTitle { color: var(--fc-text); font-weight: 600; font-size: 0.95rem; }
+.stepBody { color: var(--fc-text-secondary); font-size: 0.88rem; line-height: 1.5; margin-top: 0.1rem; }
+
+/* callout */
+.callout {
+  border: 1px solid var(--fc-border);
+  border-left: 3px solid var(--fc-accent);
+  background: color-mix(in srgb, var(--fc-accent) 6%, var(--fc-surface));
+  border-radius: var(--radius, 9px);
+  padding: 0.9rem 1.1rem;
+  margin: 1.25rem 0;
+  color: var(--fc-text-secondary);
+  font-size: 0.92rem;
+}
+.calloutLink { color: var(--fc-accent); font-weight: 600; text-decoration: none; }
+.calloutLink:hover { text-decoration: underline; }
+
+.sectionTitle {
+  color: var(--fc-text); font-weight: 700; font-size: 1.35rem;
+  margin: 2.25rem 0 0.4rem;
+  scroll-margin-top: 5rem; /* clear the fixed header when deep-linked */
+}
+.sectionAnchor {
+  color: inherit;
+  text-decoration: none;
+}
+.sectionHash {
+  margin-left: 0.4rem;
+  color: var(--fc-accent);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.sectionTitle:hover .sectionHash,
+.sectionAnchor:focus-visible .sectionHash {
+  opacity: 0.7;
+}
+.gridTwo { display: grid; grid-template-columns: 1fr; gap: 0.5rem; }
+@media (min-width: 640px) { .gridTwo { grid-template-columns: 1fr 1fr; } }
+
+.metaLine { color: var(--fc-text-faint); font-size: 0.72rem; margin-top: 2rem; }
+
+/* in-page docs search */
+.search { position: relative; margin: 0 0 1rem; }
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--radius, 9px);
+  background: var(--fc-surface);
+}
+.searchBar:focus-within { border-color: var(--fc-accent); }
+.searchIcon { color: var(--fc-text-muted); flex: 0 0 auto; }
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--fc-text);
+}
+.searchInput::placeholder { color: var(--fc-text-muted); }
+.searchClear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--fc-text-muted);
+}
+.searchClear:hover { color: var(--fc-text); }
+.searchResults {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  border: 1px solid var(--fc-border);
+  border-radius: var(--radius, 9px);
+  background: var(--fc-surface);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--fc-text) 14%, transparent);
+  max-height: 22rem;
+  overflow-y: auto;
+}
+.searchEmpty { padding: 0.8rem 0.6rem; color: var(--fc-text-muted); font-size: 0.85rem; }
+.searchResult {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.searchResultActive {
+  background: color-mix(in srgb, var(--fc-accent) 10%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--fc-accent);
+}
+.searchResultTitle { color: var(--fc-text); font-weight: 600; font-size: 0.88rem; }
+.searchResultMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--fc-text-muted);
+}
+.searchResultSub { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.searchResultPage {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fc-accent);
+  border: 1px solid color-mix(in srgb, var(--fc-accent) 40%, var(--fc-border));
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+}
+@media print { .search { display: none; } }
+
+/* version history / changelog */
+.changeList {
+  margin: 0.6rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--fc-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+.changeList li {
+  margin: 0.2rem 0;
+}
+
+/* table of contents — inline + collapsible on small screens, pinned on wide */
+.toc {
+  border: 1px solid var(--fc-border);
+  border-radius: var(--radius, 9px);
+  background: var(--fc-surface);
+  margin: 0 0 1.5rem;
+}
+.tocToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fc-text-muted);
+}
+.tocChevron {
+  color: var(--fc-accent);
+  font-size: 0.7rem;
+}
+.tocList {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0 0.5rem 0.5rem;
+}
+.tocListOpen {
+  display: block;
+}
+.tocLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--fc-text-secondary);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+.tocIcon {
+  flex: 0 0 auto;
+}
+.tocLabel {
+  min-width: 0;
+}
+.tocLink:hover {
+  color: var(--fc-text);
+  background: color-mix(in srgb, var(--fc-accent) 8%, transparent);
+  border-left-color: var(--fc-accent);
+  /* Square the left corners so the accent border sits flush, not curving
+     away at a rounded corner. Right corners stay rounded. */
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+@media (min-width: 84rem) {
+  /* Pin the TOC into the left margin of the centered column and keep it open. */
+  .toc {
+    position: fixed;
+    top: 6rem;
+    left: max(1rem, calc((100vw - 56rem) / 2 - 14rem));
+    width: 12.5rem;
+    margin: 0;
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+  }
+  .tocToggle {
+    cursor: default;
+  }
+  .tocChevron {
+    display: none;
+  }
+  .tocList {
+    display: block;
+  }
+}
+
+/* print → clean export to PDF from the browser */
+@media print {
+  .toc { display: none; }
+  :global(header), :global(footer) { display: none !important; }
+  .wrap { max-width: 100%; padding: 0; }
+  .card, .callout, .diagramCell { break-inside: avoid; }
+  :global(*) { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

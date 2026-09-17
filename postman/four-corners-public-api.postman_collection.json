@@ -1,0 +1,212 @@
+{
+  "info": {
+    "_postman_id": "4c0a0000-0000-4000-8000-fourcorners01",
+    "name": "Four Corners Public Gallery API v1",
+    "description": "Read-only API for the public 4C gallery (Context, Links, Backstory, Ethics & Rights + cross-cutting metadata).\n\nAuthentication is OPTIONAL. Every request works without a key; supplying a valid `{{apiKey}}` Bearer token raises the rate limit from 100 to 1000 requests/minute. On 429 the response includes `Retry-After` and `X-RateLimit-*` headers.\n\nSet the `baseUrl` and (optionally) `apiKey` variables via the bundled environment, or import the live spec from `{{baseUrl}}/openapi.json`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{apiKey}}", "type": "string" }]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://fourcorners-git-feat-public-api-v1-thetechmargin.vercel.app/api/public/v1",
+      "type": "string"
+    },
+    { "key": "slug", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Discovery",
+      "item": [
+        {
+          "name": "API index",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""] },
+            "description": "Lists every endpoint with a short description."
+          }
+        },
+        {
+          "name": "OpenAPI 3.1 spec",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/openapi.json",
+              "host": ["{{baseUrl}}"],
+              "path": ["openapi.json"]
+            },
+            "description": "Machine-readable spec. Import into Postman via Import → Link."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gallery",
+      "item": [
+        {
+          "name": "Paginated gallery feed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/gallery?limit=24&offset=0&sort=newest",
+              "host": ["{{baseUrl}}"],
+              "path": ["gallery"],
+              "query": [
+                { "key": "limit", "value": "24", "description": "1–100, default 24" },
+                { "key": "offset", "value": "0", "description": "default 0" },
+                { "key": "sort", "value": "newest", "description": "newest | oldest | random" },
+                { "key": "tag", "value": "", "description": "Filter by tag", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Project",
+      "item": [
+        {
+          "name": "Full project (all corners)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{slug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{slug}}"]
+            }
+          }
+        },
+        {
+          "name": "Child projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{slug}}/children",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{slug}}", "children"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Corners",
+      "item": [
+        {
+          "name": "UL — Context",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{slug}}/context",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{slug}}", "context"]
+            }
+          }
+        },
+        {
+          "name": "UR — Links",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{slug}}/links",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{slug}}", "links"]
+            }
+          }
+        },
+        {
+          "name": "BL — Backstory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{slug}}/backstory",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{slug}}", "backstory"]
+            }
+          }
+        },
+        {
+          "name": "BR — Ethics & Rights",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{slug}}/ethics",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{slug}}", "ethics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cross-cutting",
+      "item": [
+        {
+          "name": "Location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{slug}}/location",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{slug}}", "location"]
+            }
+          }
+        },
+        {
+          "name": "Photo metadata (EXIF)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{slug}}/photo-metadata",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{slug}}", "photo-metadata"]
+            }
+          }
+        },
+        {
+          "name": "Voice transcriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{slug}}/voice-transcriptions",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{slug}}", "voice-transcriptions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "IIIF",
+      "item": [
+        {
+          "name": "IIIF Presentation 3.0 manifest",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{slug}}/iiif",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{slug}}", "iiif"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

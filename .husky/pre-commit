@@ -1,0 +1,72 @@
+#!/bin/sh
+#
+# Pre-commit hook (version-controlled via husky):
+# 1. Lints staged .ts/.tsx files (always, fast)
+# 2. Regenerates TYPES.md + runs schema-drift tests if schema files changed
+# 3. Regenerates app/docs/_data if docs source-of-truth inputs changed
+#
+# Generated artifacts (TYPES.md, app/docs/_data) are auto-regenerated and
+# re-staged so they never drift from their sources. The docs trigger set
+# mirrors the inputs of .github/workflows/docs.yml — generate-docs derives
+# its output from the field registry + OpenAPI spec + the generator's own
+# editorial copy, NOT from component/UI files, so only those paths matter.
+#
+# Husky runs this with `sh -e`, so every command must either be guarded by a
+# conditional or `|| true` — an un-guarded non-zero (e.g. a grep with no match)
+# would otherwise abort the commit.
+
+STAGED=$(git diff --cached --name-only || true)
+STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '\.(ts|tsx)$' | grep -v 'next-env\.d\.ts' || true)
+
+# ── 1. Lint staged .ts/.tsx files ────────────────────────────────────────────
+
+if [ -n "$STAGED_TS" ]; then
+  echo "Linting staged files..."
+  if ! printf '%s\n' "$STAGED_TS" | xargs npx eslint; then
+    echo ""
+    echo "LINT FAILED — fix errors before committing."
+    exit 1
+  fi
+  echo "Lint passed."
+fi
+
+# ── 2. Schema change → regenerate TYPES.md + schema-drift test ───────────────
+
+if printf '%s\n' "$STAGED" | grep -qE '(field-registry|projects-transforms|reconstruct-metadata|context-items|test-factory)\.ts$'; then
+  echo "Schema files changed — running data model checks..."
+
+  echo "Regenerating TYPES.md..."
+  if ! npx tsx scripts/generate-types-doc.ts; then
+    echo "ERROR: TYPES.md generation failed"
+    exit 1
+  fi
+  if ! git diff --quiet TYPES.md 2>/dev/null; then
+    git add TYPES.md
+    echo "TYPES.md updated and staged."
+  fi
+
+  echo "Running schema-drift tests..."
+  if ! npx vitest run __tests__/schema-drift.test.ts --reporter=dot; then
+    echo ""
+    echo "SCHEMA DRIFT DETECTED — fix mismatches before committing."
+    echo "Run: npm run test:schema"
+    exit 1
+  fi
+fi
+
+# ── 3. Docs source-of-truth change → regenerate app/docs/_data ──────────────
+
+if printf '%s\n' "$STAGED" | grep -qE '(lib/field-registry\.ts|lib/openapi-spec\.ts|scripts/generate-docs\.ts)$'; then
+  echo "Docs inputs changed — regenerating /docs data..."
+  if ! npm run generate:docs; then
+    echo "ERROR: docs generation failed"
+    exit 1
+  fi
+  if ! git diff --quiet app/docs/_data 2>/dev/null; then
+    git add app/docs/_data
+    echo "app/docs/_data updated and staged."
+  fi
+fi
+
+echo "All checks passed."
