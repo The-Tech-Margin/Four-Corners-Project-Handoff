@@ -1,0 +1,32 @@
+{
+  "name": "@fourcorners/canvas",
+  "version": "1.3.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Konva canvas engine for Four Corners. Vendored from The-Tech-Margin/Open-Canvas-Metadata-Create @ Open-4C-v1.3 (80bd2de).",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "default": "./index.ts"
+    },
+    "./react": {
+      "types": "./react/index.ts",
+      "default": "./react/index.ts"
+    },
+    "./theme": {
+      "types": "./theme/index.ts",
+      "default": "./theme/index.ts"
+    }
+  },
+  "dependencies": {
+    "konva": "^9.3.22",
+    "react-konva": "~19.2.7",
+    "react-konva-utils": "^1.1.3"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# Pre-commit:
+#   1. Lints staged .ts/.tsx files.
+#   2. Regenerates the JSON Schemas when the model changes, and re-stages them.
+#   3. Regenerates the in-app docs data when its sources change.
+#
+# Husky runs this with `sh -e`, so every command is either guarded by a
+# conditional or ends with `|| true` — an unguarded non-zero (a grep with no
+# match, say) would abort the commit.
+
+STAGED=$(git diff --cached --name-only || true)
+STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '\.(ts|tsx)$' | grep -v 'next-env\.d\.ts' || true)
+
+# ── 1. Lint staged .ts/.tsx files ────────────────────────────────────────────
+
+if [ -n "$STAGED_TS" ]; then
+  echo "Linting staged files..."
+  if ! printf '%s\n' "$STAGED_TS" | xargs npx eslint --no-warn-ignored; then
+    echo ""
+    echo "LINT FAILED — fix errors before committing."
+    exit 1
+  fi
+  echo "Lint passed."
+fi
+
+# ── 2. Model change → regenerate schema/ and run the model checks ────────────
+
+if printf '%s\n' "$STAGED" | grep -qE '(lib/field-registry|lib/export-contract|lib/schema|lib/test-factory|scripts/generate-schema)\.ts$'; then
+  echo "Model files changed — regenerating JSON Schemas..."
+  if ! npm run generate:schema; then
+    echo "ERROR: schema generation failed"
+    exit 1
+  fi
+  if ! git diff --quiet schema 2>/dev/null; then
+    git add schema
+    echo "schema/ updated and staged."
+  fi
+
+  if ! npx vitest run __tests__/schema-drift.test.ts __tests__/schema-json.test.ts --reporter=dot; then
+    echo ""
+    echo "SCHEMA DRIFT DETECTED — fix mismatches before committing."
+    exit 1
+  fi
+fi
+
+# ── 3. Docs source-of-truth change → regenerate app/docs/_data ──────────────
+
+if printf '%s\n' "$STAGED" | grep -qE '(lib/field-registry\.ts|lib/openapi-spec\.ts|scripts/generate-docs\.ts)$'; then
+  echo "Docs inputs changed — regenerating /docs data..."
+  if ! npm run generate:docs; then
+    echo "ERROR: docs generation failed"
+    exit 1
+  fi
+  if ! git diff --quiet app/docs/_data 2>/dev/null; then
+    git add app/docs/_data
+    echo "app/docs/_data updated and staged."
+  fi
+fi
+
+echo "All checks passed."

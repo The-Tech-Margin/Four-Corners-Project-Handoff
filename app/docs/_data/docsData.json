@@ -1,0 +1,600 @@
+{
+  "generatedAt": "2026-09-17",
+  "generator": "Four Corners — system design & build: TheTechMargin",
+  "tagline": "An open standard for how images carry their story — shifting photographers into authors, and viewers into engaged readers.",
+  "apiInfo": {
+    "title": "Four Corners Public Gallery API",
+    "version": "1.0.0",
+    "baseUrl": "http://localhost:3000"
+  },
+  "gettingStarted": [
+    {
+      "n": 1,
+      "title": "Get an account",
+      "body": "Create an account from the sign-in dialog, or ask whoever runs this deployment for access."
+    },
+    {
+      "n": 2,
+      "title": "Sign in",
+      "body": "Sign in with your email and password. Forgotten passwords are reset by email link."
+    },
+    {
+      "n": 3,
+      "title": "Land in the editor",
+      "body": "The editor is your home page after logging in — it's where you build a project."
+    },
+    {
+      "n": 4,
+      "title": "Upload an image or video",
+      "body": "Drop a file, upload, or pick from your library. The corner icons on the preview jump you to each section."
+    },
+    {
+      "n": 5,
+      "title": "Fill your corners",
+      "body": "Add as much or as little as you like across one or more corners — there is no minimum."
+    },
+    {
+      "n": 6,
+      "title": "Save & name",
+      "body": "Save your project and give it a name; a shareable URL slug is derived automatically."
+    },
+    {
+      "n": 7,
+      "title": "Preview & publish",
+      "body": "Preview the gallery view, then publish to the public gallery when you're ready."
+    },
+    {
+      "n": 8,
+      "title": "View & share",
+      "body": "View your work in the gallery and share it via its URL or the share link in the gallery list."
+    }
+  ],
+  "corners": [
+    {
+      "key": "context",
+      "label": "Context",
+      "subtitle": "Related Imagery",
+      "position": "Upper-Left",
+      "glyph": "↖",
+      "token": "context",
+      "whatItHolds": "Companion photographs, sequences, diptychs, archival images, and related visual material attached directly to the project.",
+      "whyItMatters": "A single frame can mislead; related imagery shows what surrounds the decisive moment — from one companion shot to a decade-spanning archive.",
+      "fields": [
+        {
+          "key": "caption",
+          "label": "Caption",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "key": "type",
+          "label": "Type",
+          "required": true,
+          "type": "enum",
+          "values": [
+            "image",
+            "video"
+          ]
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "key": "credit",
+          "label": "Credit",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "key": "date",
+          "label": "Date",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "note": "A collection — add as many related items as you like; each carries its own caption, credit, date, and optional audio."
+    },
+    {
+      "key": "links",
+      "label": "Links",
+      "subtitle": "External References",
+      "position": "Upper-Right",
+      "glyph": "↗",
+      "token": "links",
+      "whatItHolds": "Curated links to articles, investigations, data reports, and institutional sources that explain why the image matters.",
+      "whyItMatters": "Connects the photograph to verifiable sources and ongoing accountability journalism — a living bibliography that grows with the story.",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "key": "url",
+          "label": "URL",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "key": "source",
+          "label": "Source",
+          "required": false,
+          "type": "string"
+        }
+      ],
+      "note": "A collection of links; Batch mode accepts one URL per line."
+    },
+    {
+      "key": "backstory",
+      "label": "Backstory",
+      "subtitle": "The Photographer's Voice",
+      "position": "Lower-Left",
+      "glyph": "↙",
+      "token": "backstory",
+      "whatItHolds": "The photographer's first-person narrative — written or voice — about the circumstances of capture, the relationship to the subject, and the intent behind the frame.",
+      "whyItMatters": "Transparency about how and why an image was made is central to trusting it. Voice notes with Whisper transcription work in the field and at the desk.",
+      "fields": [
+        {
+          "key": "backStory.text",
+          "label": "Backstory",
+          "required": false,
+          "placeholder": "What’s the story behind this image?",
+          "iiif": "Backstory"
+        },
+        {
+          "key": "backStory.author",
+          "label": "Photographer Name",
+          "required": true,
+          "placeholder": "Who made this photograph?",
+          "iiif": "Creator"
+        },
+        {
+          "key": "backStory.publication",
+          "label": "Publication",
+          "required": false,
+          "placeholder": "Where was this published?",
+          "iiif": "Publisher"
+        },
+        {
+          "key": "backStory.publicationUrl",
+          "label": "Publication URL",
+          "required": false,
+          "placeholder": "Link to the publication...",
+          "iiif": "Publisher URL"
+        },
+        {
+          "key": "backStory.date",
+          "label": "Date",
+          "required": false,
+          "placeholder": "When was this taken?",
+          "iiif": "Date"
+        },
+        {
+          "key": "photographerInfo.bio",
+          "label": "Photographer Bio",
+          "required": false,
+          "placeholder": "Tell us about yourself...",
+          "iiif": "Photographer Bio"
+        },
+        {
+          "key": "photographerInfo.contact",
+          "label": "Contact",
+          "required": false,
+          "placeholder": "How to reach you...",
+          "iiif": "Contact"
+        },
+        {
+          "key": "photographerInfo.website",
+          "label": "Website",
+          "required": false,
+          "placeholder": "Your website...",
+          "iiif": "Photographer Website"
+        },
+        {
+          "key": "photographerInfo.collaborators",
+          "label": "Collaborators",
+          "required": false,
+          "placeholder": "Contributors or collaborators...",
+          "iiif": "Collaborators"
+        }
+      ],
+      "note": "Every text field supports voice input with Whisper transcription."
+    },
+    {
+      "key": "authorship",
+      "label": "Authorship",
+      "subtitle": "Ethics & Rights",
+      "position": "Lower-Right",
+      "glyph": "↘",
+      "token": "cc",
+      "whatItHolds": "Author bio, credit and license, collaborators, code-of-ethics declaration, software/staging disclosure, and informed-consent type.",
+      "whyItMatters": "Tells viewers and re-users what is permitted, who consented, and what is responsible — embedded permanently in the image record.",
+      "fields": [
+        {
+          "key": "creativeCommons.copyright",
+          "label": "Copyright",
+          "required": true,
+          "placeholder": "Who holds the copyright?",
+          "iiif": "Attribution"
+        },
+        {
+          "key": "creativeCommons.description",
+          "label": "Caption/Description",
+          "required": false,
+          "placeholder": "Describe what the viewer sees...",
+          "iiif": "Caption"
+        },
+        {
+          "key": "ethics.noManipulation",
+          "label": "No Manipulation",
+          "required": false,
+          "iiif": "Ethics - Manipulation"
+        },
+        {
+          "key": "ethics.manipulationDetails",
+          "label": "Manipulation Details",
+          "required": false,
+          "placeholder": "Describe any manipulation...",
+          "iiif": "Ethics - Manipulation Details"
+        },
+        {
+          "key": "ethics.noStaging",
+          "label": "No Staging",
+          "required": false,
+          "iiif": "Ethics - Staging"
+        },
+        {
+          "key": "ethics.stagingDetails",
+          "label": "Staging Details",
+          "required": false,
+          "placeholder": "Describe any staging...",
+          "iiif": "Ethics - Staging Details"
+        },
+        {
+          "key": "ethics.informedConsent",
+          "label": "Informed Consent",
+          "required": false,
+          "iiif": "Ethics - Consent"
+        },
+        {
+          "key": "ethics.consentDetails",
+          "label": "Consent Details",
+          "required": false,
+          "placeholder": "Type of consent obtained...",
+          "iiif": "Ethics - Consent Details"
+        },
+        {
+          "key": "ethics.identityProtected",
+          "label": "Identity Protected",
+          "required": false,
+          "iiif": "Ethics - Identity Protection"
+        },
+        {
+          "key": "ethics.identityProtectionDetails",
+          "label": "Identity Protection Details",
+          "required": false,
+          "placeholder": "Identity protection method...",
+          "iiif": "Ethics - Identity Protection Details"
+        },
+        {
+          "key": "ethics.aiAltered",
+          "label": "AI Altered",
+          "required": false,
+          "iiif": "Ethics - AI Alteration"
+        },
+        {
+          "key": "ethics.aiAlteredDetails",
+          "label": "AI Alteration Details",
+          "required": false,
+          "placeholder": "Describe AI alterations...",
+          "iiif": "Ethics - AI Alteration Details"
+        },
+        {
+          "key": "ethics.customEthicsText",
+          "label": "Custom Ethics Statement",
+          "required": false,
+          "placeholder": "Any ethical considerations?",
+          "iiif": "Ethics Statement"
+        }
+      ],
+      "note": "Caption, credit & license, photographer bio, software/staging disclosure, and informed consent."
+    }
+  ],
+  "crossCutting": [
+    {
+      "key": "location",
+      "label": "Geographic Location",
+      "note": "Where the photograph was taken (not where metadata is entered). Auto-filled from EXIF GPS, captured from the device, or entered manually — and can be excluded from export.",
+      "fields": [
+        {
+          "key": "location.latitude",
+          "label": "Latitude",
+          "required": false,
+          "iiif": "Location"
+        },
+        {
+          "key": "location.longitude",
+          "label": "Longitude",
+          "required": false,
+          "iiif": "Location"
+        },
+        {
+          "key": "location.formattedLocation",
+          "label": "Location",
+          "required": false,
+          "iiif": "Location"
+        }
+      ]
+    },
+    {
+      "key": "camera-metadata",
+      "label": "Camera / EXIF Metadata",
+      "note": "Camera, lens, exposure, GPS and timestamps extracted from the image file on upload — no manual entry under deadline pressure.",
+      "fields": [
+        {
+          "key": "photoMetadata.equipment.cameraMake",
+          "label": "Camera Make",
+          "required": false
+        },
+        {
+          "key": "photoMetadata.equipment.cameraModel",
+          "label": "Camera Model",
+          "required": false
+        },
+        {
+          "key": "photoMetadata.equipment.lensModel",
+          "label": "Lens",
+          "required": false
+        },
+        {
+          "key": "photoMetadata.equipment.focalLength",
+          "label": "Focal Length",
+          "required": false
+        },
+        {
+          "key": "photoMetadata.equipment.iso",
+          "label": "ISO",
+          "required": false
+        },
+        {
+          "key": "photoMetadata.equipment.aperture",
+          "label": "Aperture",
+          "required": false
+        },
+        {
+          "key": "photoMetadata.equipment.shutterSpeed",
+          "label": "Shutter Speed",
+          "required": false
+        }
+      ]
+    },
+    {
+      "key": "voice",
+      "label": "Voice Notes & Transcription",
+      "note": "Browser audio recording transcribed via Whisper, woven into nearly every text field. Available to anonymous users at a shorter limit, so testimony can be captured without an account.",
+      "fields": [
+        {
+          "key": "text",
+          "label": "Text",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "key": "fieldId",
+          "label": "Field Id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "visibility": [
+    {
+      "state": "Draft / Private",
+      "published": false,
+      "inGallery": false,
+      "meaning": "Only you can see it. Work in progress."
+    },
+    {
+      "state": "Shared via link",
+      "published": true,
+      "inGallery": false,
+      "meaning": "Anyone with the share link can view; not listed in the public gallery."
+    },
+    {
+      "state": "Public gallery",
+      "published": true,
+      "inGallery": true,
+      "meaning": "Published and discoverable in the public gallery."
+    }
+  ],
+  "accessibility": [
+    {
+      "id": "keyboard",
+      "title": "Keyboard basics (everywhere)",
+      "items": [
+        "Tab and Shift+Tab move between controls; Enter or Space activates buttons and links.",
+        "Escape closes any open menu, dropdown, dialog, viewer panel, or overlay.",
+        "A “Skip to main content” link is the first thing Tab reaches on every page.",
+        "Once the app menu is open, the arrow keys move between its items and Escape returns focus to the menu button."
+      ]
+    },
+    {
+      "id": "editor",
+      "title": "In the editor (signed in)",
+      "items": [
+        "Cmd+S (Mac) / Ctrl+S exports your metadata as JSON from anywhere in the editor.",
+        "The corner icons on the image preview jump to each of the four sections.",
+        "Nearly every text field accepts voice input — recordings are transcribed automatically.",
+        "In Sketchboard (canvas) mode: + or = zooms in, − zooms out, 0 fits the content to view, and Escape closes the open panel."
+      ]
+    },
+    {
+      "id": "gallery",
+      "title": "Browsing the gallery (no account needed)",
+      "items": [
+        "Each gallery card is reachable with a single Tab stop via its title — Enter opens the project.",
+        "The Sort, tag-filter, and grid/list controls announce their current state to screen readers.",
+        "The result count updates as a polite live region, and loading states are announced."
+      ]
+    },
+    {
+      "id": "viewer-panels",
+      "title": "Viewing a published image (no account needed)",
+      "items": [
+        "Each corner on a published image is a button — press Enter or Space to open its panel.",
+        "When a panel opens, focus moves into it; press Escape or the close button to dismiss it, and focus returns to the corner you opened.",
+        "Related-imagery thumbnails open with Enter or Space, and video players are labelled."
+      ]
+    },
+    {
+      "id": "screen-readers",
+      "title": "Screen reader support",
+      "items": [
+        "Landmarks (banner, main, navigation, content-info) and a skip-to-content link aid orientation.",
+        "Icon-only buttons carry text labels; purely decorative graphics are hidden from assistive tech.",
+        "Form fields have associated labels and, where helpful, descriptions."
+      ]
+    },
+    {
+      "id": "motion-contrast",
+      "title": "Motion, contrast and focus",
+      "items": [
+        "Animations respect your operating system's “reduce motion” setting.",
+        "Text and controls meet WCAG AA contrast in both light and dark themes.",
+        "A visible focus outline is shown on every interactive element."
+      ]
+    },
+    {
+      "id": "reporting",
+      "title": "Reporting an accessibility barrier",
+      "items": [
+        "Contact whoever runs this deployment, or open an issue in the project repository.",
+        "Say which page you were on, what you were trying to do, and the assistive technology or input method you were using."
+      ]
+    }
+  ],
+  "api": [
+    {
+      "path": "/api/public/v1/",
+      "method": "GET",
+      "summary": "API index",
+      "description": "Lists every endpoint with a short description.",
+      "tags": [
+        "Discovery"
+      ]
+    },
+    {
+      "path": "/api/public/v1/openapi.json",
+      "method": "GET",
+      "summary": "OpenAPI 3.1 spec",
+      "description": "This document. Import into Postman via Import → Link.",
+      "tags": [
+        "Discovery"
+      ]
+    },
+    {
+      "path": "/api/public/v1/gallery",
+      "method": "GET",
+      "summary": "Paginated gallery feed",
+      "description": "",
+      "tags": [
+        "Gallery"
+      ]
+    },
+    {
+      "path": "/api/public/v1/projects/{slug}",
+      "method": "GET",
+      "summary": "Full project (all four corners + cross-cutting)",
+      "description": "",
+      "tags": [
+        "Project"
+      ]
+    },
+    {
+      "path": "/api/public/v1/projects/{slug}/children",
+      "method": "GET",
+      "summary": "Daisy-chained child projects",
+      "description": "",
+      "tags": [
+        "Project"
+      ]
+    },
+    {
+      "path": "/api/public/v1/projects/{slug}/context",
+      "method": "GET",
+      "summary": "Upper-Left corner — Context (related imagery)",
+      "description": "",
+      "tags": [
+        "Corners"
+      ]
+    },
+    {
+      "path": "/api/public/v1/projects/{slug}/links",
+      "method": "GET",
+      "summary": "Upper-Right corner — Links (external references)",
+      "description": "",
+      "tags": [
+        "Corners"
+      ]
+    },
+    {
+      "path": "/api/public/v1/projects/{slug}/backstory",
+      "method": "GET",
+      "summary": "Bottom-Left corner — Backstory (photographer narrative)",
+      "description": "",
+      "tags": [
+        "Corners"
+      ]
+    },
+    {
+      "path": "/api/public/v1/projects/{slug}/ethics",
+      "method": "GET",
+      "summary": "Bottom-Right corner — Ethics & Rights (CC + ethics + photographer)",
+      "description": "",
+      "tags": [
+        "Corners"
+      ]
+    },
+    {
+      "path": "/api/public/v1/projects/{slug}/location",
+      "method": "GET",
+      "summary": "Geographic location (with PostGIS lat/lon + address)",
+      "description": "",
+      "tags": [
+        "Cross-cutting"
+      ]
+    },
+    {
+      "path": "/api/public/v1/projects/{slug}/photo-metadata",
+      "method": "GET",
+      "summary": "EXIF / camera metadata",
+      "description": "",
+      "tags": [
+        "Cross-cutting"
+      ]
+    },
+    {
+      "path": "/api/public/v1/projects/{slug}/voice-transcriptions",
+      "method": "GET",
+      "summary": "Voice recordings and their transcriptions",
+      "description": "",
+      "tags": [
+        "Cross-cutting"
+      ]
+    },
+    {
+      "path": "/api/public/v1/projects/{slug}/iiif",
+      "method": "GET",
+      "summary": "IIIF Presentation 3.0 manifest",
+      "description": "",
+      "tags": [
+        "IIIF"
+      ]
+    }
+  ]
+}
