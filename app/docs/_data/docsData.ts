@@ -23,7 +23,7 @@ export type DocsData = {
 };
 
 export const docsData: DocsData = {
-  "generatedAt": "2026-09-17",
+  "generatedAt": "2026-09-18",
   "generator": "Four Corners — system design & build: TheTechMargin",
   "tagline": "An open standard for how images carry their story — shifting photographers into authors, and viewers into engaged readers.",
   "apiInfo": {

@@ -52,10 +52,12 @@ jobs:
           git diff --exit-code schema \
             || (echo "::error::schema/ is stale — run 'npm run generate:schema' and commit." && exit 1)
 
+      # generatedAt follows commit dates, which move whenever history is
+      # rewritten (squash, rebase, cherry-pick) — so only content counts.
       - name: In-app docs data is current
         run: |
           npm run generate:docs
-          git diff --exit-code app/docs/_data \
+          git diff --exit-code -I '"generatedAt":' app/docs/_data \
             || (echo "::error::app/docs/_data is stale — run 'npm run generate:docs' and commit." && exit 1)
 
   build:
