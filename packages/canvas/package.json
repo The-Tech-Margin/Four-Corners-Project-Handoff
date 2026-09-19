@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "konva": "^9.3.22",
+    "konva": "^10.5.0",
     "react-konva": "~19.2.7",
     "react-konva-utils": "^1.1.3"
   },
