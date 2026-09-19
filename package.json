@@ -3,7 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "author": "TheTechMargin (@thetechmargin) <https://www.thetechmargin.com>",
+  "author": "TheTechMargin (https://www.thetechmargin.com)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/The-Tech-Margin/Four-Corners-Project-Handoff.git"
+  },
+  "bugs": "https://github.com/The-Tech-Margin/Four-Corners-Project-Handoff/issues",
+  "homepage": "https://github.com/The-Tech-Margin/Four-Corners-Project-Handoff#readme",
   "engines": {
     "node": ">=22.11.0"
   },

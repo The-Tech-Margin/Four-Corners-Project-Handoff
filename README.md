@@ -118,6 +118,12 @@ tokens, password hashing, the SSRF guard, keyword ranking — is tested
 without a browser or a server. `__tests__/local-adapters.test.ts` is the
 contract a new adapter should satisfy.
 
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
+[code of conduct](CODE_OF_CONDUCT.md). Report vulnerabilities as described in
+[`SECURITY.md`](SECURITY.md), not in issues.
+
 ## License
 
 MIT © 2026 TheTechMargin. See [`LICENSE`](LICENSE) and
